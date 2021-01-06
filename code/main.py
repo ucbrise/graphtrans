@@ -74,7 +74,7 @@ def main():
 
     args = parser.parse_args()
 
-    run_name = f'{args.gnn}+{args.aug}'
+    run_name = f'{args.task}+{args.gnn}+{args.aug}'
     wandb.run.name = run_name
     wandb.run.save()
 

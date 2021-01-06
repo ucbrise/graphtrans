@@ -14,10 +14,6 @@ class FlagTrainer(BaseTrainer):
 
     @staticmethod
     def train(model, device, loader, optimizer, args):
-        if args.task == 'code':
-            _cal_loss = _cal_loss_multi
-        else:
-            _cal_loss = _cal_loss_single
         model.train()
 
         loss_accum = 0
@@ -55,15 +51,10 @@ class FlagTrainer(BaseTrainer):
 
         return loss_accum / (step + 1)
 
-def _cal_loss_multi(pred_list, y_arr, m):
+def _cal_loss(pred_list, y_arr, m):
     loss = 0
     for i in range(len(pred_list)):
         loss += BaseTrainer.multicls_criterion(pred_list[i].to(torch.float32), y_arr[:, i])
     loss = loss / len(pred_list)
-    loss /= m
-    return loss
-
-def _cal_loss_single(pred_list, y_arr, m):
-    loss = BaseTrainer.multicls_criterion(pred_list.to(torch.float32), y_arr)
     loss /= m
     return loss
