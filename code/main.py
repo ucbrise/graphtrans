@@ -6,7 +6,7 @@ from torchvision import transforms
 from gnn import GNN
 
 from tqdm import tqdm
-import argparse
+import configargparse
 import time
 import numpy as np
 import pandas as pd
@@ -25,11 +25,17 @@ import wandb
 wandb.init(project='graph-aug')
 
 
-multicls_criterion = torch.nn.CrossEntropyLoss()
 
 def main():
-    parser = argparse.ArgumentParser(description='GNN baselines on ogbg-code data with Pytorch Geometrics')
     # fmt: off
+    parser = configargparse.ArgumentParser(allow_abbrev=False,
+                                    description='GNN baselines on ogbg-code data with Pytorch Geometrics')
+    parser.add_argument('--configs', required=False, is_config_file=True)
+
+    parser.add_argument('--data_root', type=str, default='/data/zhwu/ogb')
+    parser.add_argument('--aug', type=str, default='baseline',
+                        help='augment method to use [baseline|flag]')
+                        
     parser.add_argument('--device', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
     parser.add_argument('--gnn', type=str, default='gcn-virtual',
@@ -56,9 +62,6 @@ def main():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--test-freq', type=int, default=1)
-
-    parser.add_argument('--aug_method', type=str, default='baseline',
-                        help='augment method to use [baseline|flag]')
     # fmt: on
 
     args, _ = parser.parse_known_args()
@@ -70,13 +73,14 @@ def main():
 
     args = parser.parse_args()
 
-    run_name = f'{args.gnn}+{args.aug_method}'
+    run_name = f'{args.gnn}+{args.aug}'
     wandb.run.name = run_name
+    wandb.run.save()
 
-    device = torch.device("cuda:" + str(args.device)) if torch.cuda.is_available() else torch.device("cpu")
+    device = torch.device("cuda") if torch.cuda.is_available() and args.device >= 0 else torch.device("cpu")
 
     # automatic dataloading and splitting
-    dataset = PygGraphPropPredDataset(name=args.dataset)
+    dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root)
 
     seq_len_list = np.array([len(seq) for seq in dataset.data.y])
     print('Target seqence less or equal to {} is {}%.'.format(
@@ -133,17 +137,13 @@ def main():
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
-        valid_curve = []
-        test_curve = []
-        train_curve = []
-
         for epoch in range(1, args.epochs + 1):
             print("=====Epoch {}=====".format(epoch))
             print('Training...')
-            loss = train(model, device, train_loader, optimizer)
+            loss = train(model, device, train_loader, optimizer, args)
 
-            print('Evaluating...')
-            if epoch > args.epochs // 2 and epoch % args.test_freq == 0 or epoch == args.epochs:
+            if epoch > args.epochs // 2 and epoch % args.test_freq == 0 or epoch in [0, args.epochs]:
+                print('Evaluating...')
                 train_perf = eval(model, device, train_loader, evaluator,
                                 arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
                 valid_perf = eval(model, device, valid_loader, evaluator,
@@ -151,18 +151,18 @@ def main():
                 test_perf = eval(model, device, test_loader, evaluator,
                                 arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
 
-            # print({'Train': train_perf, 'Validation': valid_perf, 'Test': test_perf})
+                # print({'Train': train_perf, 'Validation': valid_perf, 'Test': test_perf})
 
-            train_metric, valid_metric, test_metric = valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
-            wandb.log({f'train/{dataset.eval_metric}': train_metric,
-                    f'valid/{dataset.eval_metric}': valid_metric,
-                    f'test/{dataset.eval_metric}': test_metric,
-                    'epoch': epoch,
-                    'run_id': run_id})
+                train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
+                wandb.log({f'train/{dataset.eval_metric}': train_metric,
+                        f'valid/{dataset.eval_metric}': valid_metric,
+                        f'test/{dataset.eval_metric}': test_metric,
+                        'epoch': epoch,
+                        'run_id': run_id})
 
-            if best_val > valid_metric:
-                best_val = valid_metric
-                final_test = test_metric
+                if best_val > valid_metric:
+                    best_val = valid_metric
+                    final_test = test_metric
         return best_val, final_test
 
     vals, tests = [], []

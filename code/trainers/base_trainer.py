@@ -1,8 +1,9 @@
 from tqdm import tqdm
-from trainers import register_trainer
+import torch
 
-@register_trainer("baseline")
 class BaseTrainer:
+    multicls_criterion = torch.nn.CrossEntropyLoss()
+
     @staticmethod
     def add_args(parser):
         pass
@@ -12,7 +13,7 @@ class BaseTrainer:
         model.train()
 
         loss_accum = 0
-        for step, batch in enumerate(tqdm(loader, desc="Iteration")):
+        for step, batch in enumerate(tqdm(loader, desc="Train")):
             batch = batch.to(device)
 
             if batch.x.shape[0] == 1 or batch.batch[-1] == 0:
@@ -23,7 +24,7 @@ class BaseTrainer:
 
                 loss = 0
                 for i in range(len(pred_list)):
-                    loss += multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
+                    loss += BaseTrainer.multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
 
                 loss = loss / len(pred_list)
 
@@ -41,7 +42,7 @@ class BaseTrainer:
         seq_ref_list = []
         seq_pred_list = []
 
-        for step, batch in enumerate(tqdm(loader, desc="Iteration")):
+        for step, batch in enumerate(tqdm(loader, desc="Eval")):
             batch = batch.to(device)
 
             if batch.x.shape[0] == 1:

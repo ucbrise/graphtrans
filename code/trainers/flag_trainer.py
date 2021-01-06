@@ -1,3 +1,4 @@
+import torch
 from tqdm import tqdm
 from .base_trainer import BaseTrainer
 from trainers import register_trainer
@@ -31,7 +32,7 @@ class FlagTrainer(BaseTrainer):
                 pred_list = model(batch, perturb)
                 loss = 0
                 for i in range(len(pred_list)):
-                    loss += multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
+                    loss += BaseTrainer.multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
                 loss = loss / len(pred_list)
                 loss /= args.m
 
@@ -44,7 +45,7 @@ class FlagTrainer(BaseTrainer):
                     pred_list = model(batch, perturb)
                     loss = 0
                     for i in range(len(pred_list)):
-                        loss += multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
+                        loss += BaseTrainer.multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
                     loss = loss / len(pred_list)
                     loss /= args.m
 

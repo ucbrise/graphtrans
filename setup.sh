@@ -12,6 +12,4 @@ pip install torch-cluster -f https://pytorch-geometric.com/whl/torch-${TORCH}+${
 pip install torch-spline-conv -f https://pytorch-geometric.com/whl/torch-${TORCH}+${CUDA}.html
 pip install torch-geometric
 pip install ogb
-
-conda install --name graph-aug pylint -y
-conda install --name graph-aug yapf -y
+pip install configargparse wandb

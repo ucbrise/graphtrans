@@ -1,16 +1,16 @@
 from .base_trainer import BaseTrainer
-from .flag_trainer import FlagTrainer
+import os
+import importlib
 
 TRAINER_REGISTRY = {}
 TRAINER_CLASS_NAMES = set()
 
 __all__ = {
     "BaseTrainer",
-    "FlagTrainer"
 }
 
-def setup_trainer(args, parser):
-    return TRAINER_REGISTRY[args.aug_method].setup_trainer(args, parser)
+def get_trainer(args):
+    return TRAINER_REGISTRY[args.aug]
 
 
 def register_trainer(name, dataclass=None):
@@ -47,3 +47,16 @@ def register_trainer(name, dataclass=None):
         return cls
 
     return register_trainer_cls
+
+
+# automatically import any Python files in the models/ directory
+trainers_dir = os.path.dirname(__file__)
+for file in os.listdir(trainers_dir):
+    path = os.path.join(trainers_dir, file)
+    if (
+        not file.startswith("_")
+        and not file.startswith(".")
+        and (file.endswith(".py") or os.path.isdir(path))
+    ):
+        trainer_name = file[: file.find(".py")] if file.endswith(".py") else file
+        module = importlib.import_module("trainers." + trainer_name)
