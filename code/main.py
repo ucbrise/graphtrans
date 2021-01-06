@@ -32,6 +32,7 @@ def main():
                                     description='GNN baselines on ogbg-code data with Pytorch Geometrics')
     parser.add_argument('--configs', required=False, is_config_file=True)
 
+    parser.add_argument('--task', type=str, default='code')
     parser.add_argument('--data_root', type=str, default='/data/zhwu/ogb')
     parser.add_argument('--aug', type=str, default='baseline',
                         help='augment method to use [baseline|flag]')
