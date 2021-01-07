@@ -1,0 +1,5 @@
+dataset: ogbg-molpcba
+aug: flag
+gnn: gin-virtual
+runs: 5
+step-size: 8e-3
