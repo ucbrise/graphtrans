@@ -1,2 +1,3 @@
 aug: baseline
 gnn: gcn
+runs: 5

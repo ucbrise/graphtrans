@@ -143,7 +143,7 @@ def main():
             print('Training...')
             loss = train(model, device, train_loader, optimizer, args)
 
-            if epoch > args.epochs // 2 and epoch % args.test_freq == 0 or epoch in [0, args.epochs]:
+            if epoch > args.epochs // 2 and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
                 print('Evaluating...')
                 train_perf = eval(model, device, train_loader, evaluator,
                                 arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
@@ -157,9 +157,8 @@ def main():
                 train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
                 wandb.log({f'train/{dataset.eval_metric}': train_metric,
                         f'valid/{dataset.eval_metric}': valid_metric,
-                        f'test/{dataset.eval_metric}': test_metric,
-                        'epoch': epoch,
-                        'run_id': run_id})
+                        f'test/{dataset.eval_metric}-runs{run_id}': test_metric,
+                        'epoch': epoch})
 
                 if best_val > valid_metric:
                     best_val = valid_metric
