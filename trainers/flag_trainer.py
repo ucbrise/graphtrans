@@ -13,7 +13,7 @@ class FlagTrainer(BaseTrainer):
         # fmt: on
 
     @staticmethod
-    def train(model, device, loader, optimizer, args):
+    def train(model, device, loader, optimizer, args, calc_loss):
         model.train()
 
         loss_accum = 0
@@ -32,7 +32,7 @@ class FlagTrainer(BaseTrainer):
 
                 pred_list = model(batch, perturb)
                 
-                loss = _cal_loss(pred_list, batch.y_arr, args.m)
+                loss = calc_loss(pred_list, batch.y_arr, args.m)
 
                 for _ in range(args.m - 1):
                     loss.backward()
@@ -42,7 +42,7 @@ class FlagTrainer(BaseTrainer):
 
                     pred_list = model(batch, perturb)
 
-                    loss = _cal_loss(pred_list, batch.y_arr, args.m)
+                    loss = calc_loss(pred_list, batch.y_arr, args.m)
 
                 loss.backward()
                 optimizer.step()
@@ -50,11 +50,3 @@ class FlagTrainer(BaseTrainer):
                 loss_accum += loss.item()
 
         return loss_accum / (step + 1)
-
-def _cal_loss(pred_list, y_arr, m):
-    loss = 0
-    for i in range(len(pred_list)):
-        loss += BaseTrainer.multicls_criterion(pred_list[i].to(torch.float32), y_arr[:, i])
-    loss = loss / len(pred_list)
-    loss /= m
-    return loss
