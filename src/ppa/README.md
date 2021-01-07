@@ -1,4 +1,4 @@
-# OGBG-Code
+# OGBG-PPA
 
 ## Algorithms
 * gcn 
@@ -16,10 +16,10 @@ To setup the Python environment, please install conda first. All the environment
 ## How to Run
 To run experiments:
 ```bash
-python srccode/main.py \
-    --configs configs/code/gin-virtual/flag.yml \
+python src/ppa/main.py \
+    --configs configs/ppa/gin-virtual/flag.yml \
     --device 0
 
 # Or to use slurm
-sbatch ./slurm-run.sh src/code/main.py configs/code/gin-virtual/flag.yml
+sbatch ./slurm-run.sh src/ppa/main.py configs/ppa/gin-virtual/flag.yml
 ```
