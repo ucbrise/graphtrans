@@ -21,7 +21,7 @@ class BaseTrainer:
                 pred_list = model(batch)
                 optimizer.zero_grad()
 
-                loss = calc_loss(pred_list, batch.y_arr)
+                loss = calc_loss(pred_list, batch)
 
                 loss = loss / len(pred_list)
 

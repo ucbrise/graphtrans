@@ -32,7 +32,7 @@ class FlagTrainer(BaseTrainer):
 
                 pred_list = model(batch, perturb)
                 
-                loss = calc_loss(pred_list, batch.y_arr, args.m)
+                loss = calc_loss(pred_list, batch, args.m)
 
                 for _ in range(args.m - 1):
                     loss.backward()
@@ -42,7 +42,7 @@ class FlagTrainer(BaseTrainer):
 
                     pred_list = model(batch, perturb)
 
-                    loss = calc_loss(pred_list, batch.y_arr, args.m)
+                    loss = calc_loss(pred_list, batch, args.m)
 
                 loss.backward()
                 optimizer.step()

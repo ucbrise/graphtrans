@@ -25,10 +25,10 @@ import wandb
 wandb.init(project='graph-aug')
 
 multicls_criterion = torch.nn.CrossEntropyLoss()
-def calc_loss(pred_list, y_arr, m=1.0):
+def calc_loss(pred_list, batch, m=1.0):
     loss = 0
     for i in range(len(pred_list)):
-        loss += multicls_criterion(pred_list[i].to(torch.float32), y_arr[:, i])
+        loss += multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
     loss = loss / len(pred_list)
     loss /= m
     return loss
