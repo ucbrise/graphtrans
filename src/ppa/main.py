@@ -82,8 +82,6 @@ def main():
                         help='number of workers (default: 0)')
     parser.add_argument('--dataset', type=str, default="ogbg-ppa",
                         help='dataset name (default: ogbg-ppa)')
-    parser.add_argument('--feature', type=str, default="full",
-                    help='full feature or simple feature')
 
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--runs', type=int, default=10)
