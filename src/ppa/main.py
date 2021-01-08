@@ -15,7 +15,7 @@ import os
 # importing OGB
 from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
 
-from trainers import get_trainer
+from trainers import get_trainer_and_parser
 
 import wandb
 wandb.init(project='graph-aug')
@@ -91,8 +91,7 @@ def main():
     args, _ = parser.parse_known_args()
     
     # Setup Trainer and add customized args
-    trainer = get_trainer(args)
-    trainer.add_args(parser)
+    trainer = get_trainer_and_parser(args, parser)
     train = trainer.train
 
     args = parser.parse_args()

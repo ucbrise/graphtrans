@@ -19,7 +19,7 @@ from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
 from utils import ASTNodeEncoder, get_vocab_mapping
 # for data transform
 from utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
-from trainers import get_trainer
+from trainers import get_trainer_and_parser
 
 import wandb
 wandb.init(project='graph-aug')
@@ -106,8 +106,7 @@ def main():
     args, _ = parser.parse_known_args()
     
     # Setup Trainer and add customized args
-    trainer = get_trainer(args)
-    trainer.add_args(parser)
+    trainer = get_trainer_and_parser(args, parser)
     train = trainer.train
 
     args = parser.parse_args()

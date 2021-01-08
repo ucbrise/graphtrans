@@ -3,7 +3,7 @@ from torch_geometric.data import DataLoader
 import torch.optim as optim
 import torch.nn.functional as F
 from torchvision import transforms
-from gnn import GNN
+from torch_geometric.utils import degree
 
 from tqdm import tqdm
 import configargparse
@@ -15,7 +15,9 @@ import os
 # importing OGB
 from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
 
-from trainers import get_trainer
+from trainers import get_trainer_and_parser
+from models import get_model_and_parser
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import wandb
 wandb.init(project='graph-aug')
@@ -77,6 +79,7 @@ def main():
                         help='dataset name (default: ogbg-ppa)')
     parser.add_argument('--feature', type=str, default="full",
                     help='full feature or simple feature')
+    parser.add_argument('--scheduler', type=bool, default=False)
 
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--runs', type=int, default=10)
@@ -86,9 +89,9 @@ def main():
     args, _ = parser.parse_known_args()
     
     # Setup Trainer and add customized args
-    trainer = get_trainer(args)
-    trainer.add_args(parser)
+    trainer = get_trainer_and_parser(args, parser)
     train = trainer.train
+    model_cls = get_model_and_parser(args, parser)
 
     args = parser.parse_args()
 
@@ -119,6 +122,14 @@ def main():
     valid_loader = DataLoader(dataset[split_idx["valid"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers)
     test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers)
 
+    # Compute in-degree histogram over training data.
+    deg = torch.zeros(10, dtype=torch.long)
+    for data in dataset[split_idx['train']]:
+        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        deg += torch.bincount(d, minlength=deg.numel())
+    args.deg = deg
+
+
     def calc_loss(pred, batch, m=1.0):
         is_labeled = batch.y == batch.y
         if "classification" in task_type: 
@@ -130,48 +141,39 @@ def main():
 
     def run(run_id):
         best_val, final_test = 0, 0
-        if args.gnn == 'gin':
-            model = GNN(gnn_type='gin', num_tasks=dataset.num_tasks, num_layer=args.num_layer, emb_dim=args.emb_dim,
-                        drop_ratio=args.drop_ratio, virtual_node=False).to(device)
-        elif args.gnn == 'gin-virtual':
-            model = GNN(gnn_type='gin', num_tasks=dataset.num_tasks, num_layer=args.num_layer, emb_dim=args.emb_dim,
-                        drop_ratio=args.drop_ratio, virtual_node=True).to(device)
-        elif args.gnn == 'gcn':
-            model = GNN(gnn_type='gcn', num_tasks=dataset.num_tasks, num_layer=args.num_layer, emb_dim=args.emb_dim,
-                        drop_ratio=args.drop_ratio, virtual_node=False).to(device)
-        elif args.gnn == 'gcn-virtual':
-            model = GNN(gnn_type='gcn', num_tasks=dataset.num_tasks, num_layer=args.num_layer, emb_dim=args.emb_dim,
-                        drop_ratio=args.drop_ratio, virtual_node=True).to(device)
-        else:
-            raise ValueError('Invalid GNN type')
-
+        model = model_cls(num_tasks=dataset.num_tasks, args=args, num_layer=args.num_layer, emb_dim=args.emb_dim,
+                        drop_ratio=args.drop_ratio).to(device)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        if args.scheduler:
+            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001)
 
         for epoch in range(1, args.epochs + 1):
             print("=====Epoch {}=====".format(epoch))
             print('Training...')
             loss = train(model, device, train_loader, optimizer, args, calc_loss)
 
-            if epoch > args.epochs // 2 and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
-                print('Evaluating...')
-                train_perf = eval(model, device, train_loader, evaluator)
-                valid_perf = eval(model, device, valid_loader, evaluator)
-                test_perf = eval(model, device, test_loader, evaluator)
+            print('Evaluating...')
+            train_perf = eval(model, device, train_loader, evaluator)
+            valid_perf = eval(model, device, valid_loader, evaluator)
+            test_perf = eval(model, device, test_loader, evaluator)
 
-                # print({'Train': train_perf, 'Validation': valid_perf, 'Test': test_perf})
+            # print({'Train': train_perf, 'Validation': valid_perf, 'Test': test_perf})
 
-                train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
-                wandb.log({f'train/{dataset.eval_metric}-runs{run_id}': train_metric,
-                        f'valid/{dataset.eval_metric}-runs{run_id}': valid_metric,
-                        f'test/{dataset.eval_metric}-runs{run_id}': test_metric,
-                        'epoch': epoch})
-                print(f"Running: {run_name} (runs {run_id})")
-                print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
+            train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
+            wandb.log({f'train/{dataset.eval_metric}-runs{run_id}': train_metric,
+                    f'valid/{dataset.eval_metric}-runs{run_id}': valid_metric,
+                    f'test/{dataset.eval_metric}-runs{run_id}': test_metric,
+                    'epoch': epoch})
+            print(f"Running: {run_name} (runs {run_id})")
+            print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
 
-                if best_val < valid_metric:
-                    best_val = valid_metric
-                    final_test = test_metric
+            if args.scheduler:
+               scheduler.step(valid_metric)
+
+            if best_val < valid_metric:
+                best_val = valid_metric
+                final_test = test_metric
         return best_val, final_test
 
     vals, tests = [], []

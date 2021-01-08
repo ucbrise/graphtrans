@@ -9,8 +9,10 @@ __all__ = {
     "BaseTrainer",
 }
 
-def get_trainer(args):
-    return TRAINER_REGISTRY[args.aug]
+def get_trainer_and_parser(args, parser):
+    trainer = TRAINER_REGISTRY[args.aug]
+    trainer.add_args(parser)
+    return trainer
 
 
 def register_trainer(name, dataclass=None):
