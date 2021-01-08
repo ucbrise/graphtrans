@@ -166,6 +166,7 @@ def main():
                         f'valid/{dataset.eval_metric}-runs{run_id}': valid_metric,
                         f'test/{dataset.eval_metric}-runs{run_id}': test_metric,
                         'epoch': epoch})
+                print(f"Running: {run_name} (runs {run_id})")
                 print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
 
                 if best_val < valid_metric:
