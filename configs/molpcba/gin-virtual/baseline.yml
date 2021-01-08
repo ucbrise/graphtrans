@@ -1,0 +1,4 @@
+dataset: ogbg-molpcba
+aug: baseline
+gnn: gin-virtual
+runs: 5

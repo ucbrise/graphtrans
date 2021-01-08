@@ -162,12 +162,13 @@ def main():
                 # print({'Train': train_perf, 'Validation': valid_perf, 'Test': test_perf})
 
                 train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
-                wandb.log({f'train/{dataset.eval_metric}': train_metric,
-                        f'valid/{dataset.eval_metric}': valid_metric,
+                wandb.log({f'train/{dataset.eval_metric}-runs{run_id}': train_metric,
+                        f'valid/{dataset.eval_metric}-runs{run_id}': valid_metric,
                         f'test/{dataset.eval_metric}-runs{run_id}': test_metric,
                         'epoch': epoch})
+                print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
 
-                if best_val > valid_metric:
+                if best_val < valid_metric:
                     best_val = valid_metric
                     final_test = test_metric
         return best_val, final_test
