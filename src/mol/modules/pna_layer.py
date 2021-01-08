@@ -2,11 +2,13 @@ from typing import Optional, List, Dict
 from torch_geometric.typing import Adj, OptTensor
 
 import torch
+import torch.nn.functional as F
 from torch import Tensor
 from torch.nn import ModuleList, Sequential, Linear, ReLU
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import reset
 from torch_geometric.utils import degree
+from ogb.graphproppred.mol_encoder import BondEncoder
 
 from .pna.aggregators import AGGREGATORS
 from .pna.scalers import SCALERS
@@ -84,7 +86,7 @@ class PNAConv(MessagePassing):
         }
 
         if self.edge_dim is not None:
-            self.edge_encoder = Linear(edge_dim, self.F_in)
+            self.edge_encoder = BondEncoder(emb_dim=in_channels)
 
         self.pre_nns = ModuleList()
         self.post_nns = ModuleList()
@@ -195,7 +197,7 @@ class PNAConvSimple(MessagePassing):
         """
     def __init__(self, in_channels: int, out_channels: int,
                  aggregators: List[str], scalers: List[str], deg: Tensor,
-                 post_layers: int = 1, **kwargs):
+                 post_layers: int = 1, add_edge='none', **kwargs):
 
         super(PNAConvSimple, self).__init__(aggr=None, node_dim=0, **kwargs)
 
@@ -203,6 +205,10 @@ class PNAConvSimple(MessagePassing):
         self.out_channels = out_channels
         self.aggregators = [AGGREGATORS[aggr] for aggr in aggregators]
         self.scalers = [SCALERS[scale] for scale in scalers]
+
+        self.add_edge = add_edge
+        if add_edge != 'none':
+            self.edge_encoder = BondEncoder(emb_dim=in_channels)
 
         self.F_in = in_channels
         self.F_out = self.out_channels
@@ -220,6 +226,8 @@ class PNAConvSimple(MessagePassing):
             modules += [ReLU()]
             modules += [Linear(self.F_out, self.F_out)]
         self.post_nn = Sequential(*modules)
+        if self.add_edge == 'gincat':
+            self.pre_nn = Linear(self.F_in * 2, self.F_in)
 
         self.reset_parameters()
 
@@ -229,10 +237,17 @@ class PNAConvSimple(MessagePassing):
     def forward(self, x: Tensor, edge_index: Adj, edge_attr: OptTensor = None) -> Tensor:
 
         # propagate_type: (x: Tensor)
-        out = self.propagate(edge_index, x=x, size=None)
+        out = self.propagate(edge_index, x=x, edge_attr=edge_attr, size=None)
         return self.post_nn(out)
 
-    def message(self, x_j: Tensor) -> Tensor:
+    def message(self, x_j: Tensor, edge_attr: OptTensor) -> Tensor:
+        if self.add_edge == 'gin':
+            edge_attr = self.edge_encoder(edge_attr)
+            return F.relu(x_j + edge_attr)
+        elif self.add_edge == 'gincat':
+            edge_attr = self.edge_encoder(edge_attr)
+            x_j = torch.cat([x_j, edge_attr], dim=-1)
+            return self.pre_nn(x_j)
         return x_j
 
     def aggregate(self, inputs: Tensor, index: Tensor,

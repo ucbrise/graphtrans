@@ -15,7 +15,7 @@ class PNANet(nn.Module):
         group.add_argument('--scalers', type=str, nargs='+', default=['identity', 'amplification', 'attenuation'])
         group.add_argument('--post_layers', type=int, default=1)
         
-    def __init__(self, num_tasks, args, num_layer=4, emb_dim=70, out_dim=70, graph_pooling="mean", residual=True, drop_ratio=0.3):
+    def __init__(self, num_tasks, args, add_edge='none', num_layer=4, emb_dim=70, out_dim=70, graph_pooling="mean", residual=True, drop_ratio=0.3):
         super().__init__()
         self.num_layer = num_layer
         self.num_tasks = num_tasks
@@ -28,7 +28,7 @@ class PNANet(nn.Module):
         self.atom_encoder = AtomEncoder(emb_dim=emb_dim)
 
         self.layers = nn.ModuleList(
-            [PNAConvSimple(in_channels=emb_dim, out_channels=emb_dim, aggregators=self.aggregators,                       scalers=self.scalers, deg=args.deg, post_layers=args.post_layers)
+            [PNAConvSimple(add_edge=add_edge, in_channels=emb_dim, out_channels=emb_dim, aggregators=self.aggregators,                       scalers=self.scalers, deg=args.deg, post_layers=args.post_layers)
              for _ in range(num_layer)])
         self.batch_norms = nn.ModuleList([BatchNorm(emb_dim) for _ in range(num_layer)])
 

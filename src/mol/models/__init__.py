@@ -12,6 +12,8 @@ def get_model_and_parser(args, parser):
             return functools.partial(GNN, gnn_type=gnn_split[0])
     elif gnn_split[0] == 'pna':
         PNANet.add_args(parser)
+        if len(gnn_split) > 1:
+            return functools.partial(PNANet, add_edge=gnn_split[1])
         return PNANet
     else:
         raise ValueError('Invalid GNN type')
