@@ -15,28 +15,31 @@ class PNANet(nn.Module):
         group.add_argument('--scalers', type=str, nargs='+', default=['identity', 'amplification', 'attenuation'])
         group.add_argument('--post_layers', type=int, default=1)
         
-    def __init__(self, num_tasks, args, add_edge='none', num_layer=4, emb_dim=70, out_dim=70, graph_pooling="mean", residual=True, drop_ratio=0.3):
+    def __init__(self, num_vocab, max_seq_len, node_encoder, args, add_edge='none', num_layer=4, emb_dim=70, out_dim=70, graph_pooling="mean", residual=True, drop_ratio=0.3):
         super().__init__()
         self.num_layer = num_layer
-        self.num_tasks = num_tasks
+        self.num_vocab = num_vocab
+        self.max_seq_len = max_seq_len
         self.aggregators = args.aggregators
         self.scalers = args.scalers
         self.residual = residual
         self.drop_ratio = drop_ratio
         self.graph_pooling = graph_pooling
 
-        self.atom_encoder = AtomEncoder(emb_dim=emb_dim)
+        self.node_encoder = node_encoder
 
         self.layers = nn.ModuleList(
             [PNAConvSimple(add_edge=add_edge, in_channels=emb_dim, out_channels=emb_dim, aggregators=self.aggregators,                       scalers=self.scalers, deg=args.deg, post_layers=args.post_layers)
              for _ in range(num_layer)])
         self.batch_norms = nn.ModuleList([BatchNorm(emb_dim) for _ in range(num_layer)])
 
-        self.mlp = nn.Sequential(nn.Linear(emb_dim, 35), 
-                        nn.ReLU(), 
-                        nn.Linear(35, 17), 
-                        nn.ReLU(), 
-                        nn.Linear(17, num_tasks))
+        self.graph_pred_linear_list = torch.nn.ModuleList()
+        for i in range(max_seq_len):
+            self.graph_pred_linear_list.append(nn.Sequential(
+                nn.Linear(emb_dim, emb_dim),
+                nn.ReLU(), 
+                nn.Linear(emb_dim, self.num_vocab),
+                ))
 
         ### Pooling function to generate whole-graph embeddings
         if self.graph_pooling == "sum":
@@ -53,8 +56,8 @@ class PNANet(nn.Module):
             raise ValueError("Invalid graph pooling type.")
 
     def forward(self, batched_data, perturb=None):
-        x, edge_index, edge_attr = batched_data.x, batched_data.edge_index, batched_data.edge_attr
-        x = self.atom_encoder(x) + perturb if perturb is not None else self.atom_encoder(x)
+        x, edge_index, edge_attr, node_depth = batched_data.x, batched_data.edge_index, batched_data.edge_attr, batched_data.node_depth
+        x = self.node_encoder(x, node_depth.view(-1,)) + perturb if perturb is not None else self.node_encoder(x, node_depth.view(-1,))
 
         for conv, batch_norm in zip(self.layers, self.batch_norms):
             h = F.relu(batch_norm(conv(x, edge_index, edge_attr)))
@@ -64,4 +67,10 @@ class PNANet(nn.Module):
 
         h_graph = self.pool(x, batched_data.batch)
 
-        return self.mlp(h_graph)
+        pred_list = []
+        # for i in range(self.max_seq_len):
+        #     pred_list.append(self.graph_pred_mlp_list[i](h_graph))
+
+        for i in range(self.max_seq_len):
+            pred_list.append(self.graph_pred_linear_list[i](h_graph))
+        return pred_list

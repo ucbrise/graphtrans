@@ -4,13 +4,13 @@ from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_poo
 import torch.nn.functional as F
 from torch_geometric.nn.inits import uniform
 
-from conv import GNN_node, GNN_node_Virtualnode
+from modules.conv import GNN_node, GNN_node_Virtualnode
 
 from torch_scatter import scatter_mean
 
 class GNN(torch.nn.Module):
 
-    def __init__(self, num_vocab, max_seq_len, node_encoder, num_layer = 5, emb_dim = 300, 
+    def __init__(self, num_vocab, max_seq_len, node_encoder, args, num_layer = 5, emb_dim = 300, 
                     gnn_type = 'gin', virtual_node = True, residual = False, drop_ratio = 0.5, JK = "last", graph_pooling = "mean"):
         '''
             num_tasks (int): number of labels to be predicted

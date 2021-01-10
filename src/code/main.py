@@ -3,7 +3,7 @@ from torch_geometric.data import DataLoader
 import torch.optim as optim
 import torch.nn.functional as F
 from torchvision import transforms
-from gnn import GNN
+from torch_geometric.utils import degree
 
 from tqdm import tqdm
 import configargparse
@@ -20,6 +20,8 @@ from utils import ASTNodeEncoder, get_vocab_mapping
 # for data transform
 from utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
 from trainers import get_trainer_and_parser
+from models import get_model_and_parser
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import wandb
 wandb.init(project='graph-aug')
@@ -97,6 +99,7 @@ def main():
                         help='number of workers (default: 0)')
     parser.add_argument('--dataset', type=str, default="ogbg-code",
                         help='dataset name (default: ogbg-code)')
+    parser.add_argument('--scheduler', type=bool, default=False)
 
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--runs', type=int, default=10)
@@ -108,6 +111,7 @@ def main():
     # Setup Trainer and add customized args
     trainer = get_trainer_and_parser(args, parser)
     train = trainer.train
+    model_cls = get_model_and_parser(args, parser)
 
     args = parser.parse_args()
 
@@ -156,30 +160,32 @@ def main():
     node_encoder = ASTNodeEncoder(args.emb_dim, num_nodetypes=len(
         nodetypes_mapping['type']), num_nodeattributes=len(nodeattributes_mapping['attr']), max_depth=20)
 
+    # Compute in-degree histogram over training data.
+    deg = torch.zeros(800, dtype=torch.long)
+    for data in dataset[split_idx['train']]:
+        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+        deg += torch.bincount(d, minlength=deg.numel())
+    args.deg = deg
+
     def run(run_id):
         best_val, final_test = 0, 0
-        if args.gnn == 'gin':
-            model = GNN(num_vocab=len(vocab2idx), max_seq_len=args.max_seq_len, node_encoder=node_encoder, num_layer=args.num_layer,
-                        gnn_type='gin', emb_dim=args.emb_dim, drop_ratio=args.drop_ratio, virtual_node=False).to(device)
-        elif args.gnn == 'gin-virtual':
-            model = GNN(num_vocab=len(vocab2idx), max_seq_len=args.max_seq_len, node_encoder=node_encoder, num_layer=args.num_layer,
-                        gnn_type='gin', emb_dim=args.emb_dim, drop_ratio=args.drop_ratio, virtual_node=True).to(device)
-        elif args.gnn == 'gcn':
-            model = GNN(num_vocab=len(vocab2idx), max_seq_len=args.max_seq_len, node_encoder=node_encoder, num_layer=args.num_layer,
-                        gnn_type='gcn', emb_dim=args.emb_dim, drop_ratio=args.drop_ratio, virtual_node=False).to(device)
-        elif args.gnn == 'gcn-virtual':
-            model = GNN(num_vocab=len(vocab2idx), max_seq_len=args.max_seq_len, node_encoder=node_encoder, num_layer=args.num_layer,
-                        gnn_type='gcn', emb_dim=args.emb_dim, drop_ratio=args.drop_ratio, virtual_node=True).to(device)
-        else:
-            raise ValueError('Invalid GNN type')
+        model = model_cls(args=args, num_vocab=len(vocab2idx), max_seq_len=args.max_seq_len, node_encoder=node_encoder, num_layer=args.num_layer, emb_dim=args.emb_dim, drop_ratio=args.drop_ratio).to(device)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        if args.scheduler:
+            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001)
+
 
         for epoch in range(1, args.epochs + 1):
             print("=====Epoch {}=====".format(epoch))
             print('Training...')
             loss = train(model, device, train_loader, optimizer, args, calc_loss)
 
+            if args.scheduler:
+                valid_perf = eval(model, device, valid_loader, evaluator,
+                                arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
+                valid_metric = valid_perf[dataset.eval_metric]
+                scheduler.step(valid_metric)
             if epoch > args.epochs // 2 and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
                 print('Evaluating...')
                 train_perf = eval(model, device, train_loader, evaluator,
@@ -198,7 +204,6 @@ def main():
                         'epoch': epoch})
                 print(f"Running: {run_name} (runs {run_id})")
                 print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
-
                 if best_val < valid_metric:
                     best_val = valid_metric
                     final_test = test_metric
