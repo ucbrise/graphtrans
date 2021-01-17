@@ -147,7 +147,7 @@ def main():
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler:
-            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001)
+            scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
 
         for epoch in range(1, args.epochs + 1):
             print("=====Epoch {}=====".format(epoch))
