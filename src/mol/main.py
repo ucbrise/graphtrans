@@ -80,6 +80,7 @@ def main():
     parser.add_argument('--feature', type=str, default="full",
                     help='full feature or simple feature')
     parser.add_argument('--scheduler', type=bool, default=False)
+    parser.add_argument('--weight_decay', type=float, default=0.0)
 
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--runs', type=int, default=10)
@@ -144,7 +145,7 @@ def main():
         model = model_cls(num_tasks=dataset.num_tasks, args=args, num_layer=args.num_layer, emb_dim=args.emb_dim,
                         drop_ratio=args.drop_ratio).to(device)
 
-        optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler:
             scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001)
 

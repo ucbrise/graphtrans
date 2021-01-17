@@ -120,6 +120,7 @@ def main():
     wandb.run.save()
 
     device = torch.device("cuda") if torch.cuda.is_available() and args.device >= 0 else torch.device("cpu")
+    print(args)
 
     # automatic dataloading and splitting
     dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root)

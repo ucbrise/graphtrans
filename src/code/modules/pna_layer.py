@@ -3,8 +3,8 @@ from torch_geometric.typing import Adj, OptTensor
 
 import torch
 import torch.nn.functional as F
+import torch.nn as nn
 from torch import Tensor
-from torch.nn import ModuleList, Sequential, Linear, ReLU
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import reset
 from torch_geometric.utils import degree
@@ -199,7 +199,7 @@ class PNAConvSimple(MessagePassing):
         """
 
     def __init__(self, in_channels: int, out_channels: int,
-                 aggregators: List[str], scalers: List[str], deg: Tensor,
+                 aggregators: List[str], scalers: List[str], deg: Tensor, drop_ratio: float = None,
                  post_layers: int = 1, add_edge='none', **kwargs):
 
         super(PNAConvSimple, self).__init__(aggr=None, node_dim=0, **kwargs)
@@ -211,7 +211,7 @@ class PNAConvSimple(MessagePassing):
 
         self.add_edge = add_edge
         if add_edge != 'none':
-            self.edge_encoder = Linear(2, in_channels)
+            self.edge_encoder = nn.Linear(2, in_channels)
 
         self.F_in = in_channels
         self.F_out = self.out_channels
@@ -224,13 +224,15 @@ class PNAConvSimple(MessagePassing):
         }
 
         in_channels = (len(aggregators) * len(scalers)) * self.F_in
-        modules = [Linear(in_channels, self.F_out)]
+        modules = [nn.Linear(in_channels, self.F_out)]
+        modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
         for _ in range(post_layers - 1):
-            modules += [ReLU()]
-            modules += [Linear(self.F_out, self.F_out)]
-        self.post_nn = Sequential(*modules)
+            modules += [nn.ReLU()]
+            modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
+            modules += [nn.Linear(self.F_out, self.F_out)]
+        self.post_nn = nn.Sequential(*modules)
         if self.add_edge == 'gincat':
-            self.pre_nn = Linear(self.F_in * 2, self.F_in)
+            self.pre_nn = nn.Linear(self.F_in * 2, self.F_in)
 
         self.reset_parameters()
 

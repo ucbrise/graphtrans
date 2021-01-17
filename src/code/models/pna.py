@@ -29,7 +29,7 @@ class PNANet(nn.Module):
         self.node_encoder = node_encoder
 
         self.layers = nn.ModuleList(
-            [PNAConvSimple(add_edge=add_edge, in_channels=emb_dim, out_channels=emb_dim, aggregators=self.aggregators,                       scalers=self.scalers, deg=args.deg, post_layers=args.post_layers)
+            [PNAConvSimple(add_edge=add_edge, in_channels=emb_dim, out_channels=emb_dim, aggregators=self.aggregators, scalers=self.scalers, deg=args.deg, post_layers=args.post_layers)
              for _ in range(num_layer)])
         self.batch_norms = nn.ModuleList([BatchNorm(emb_dim) for _ in range(num_layer)])
 
