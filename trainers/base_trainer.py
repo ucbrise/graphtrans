@@ -23,8 +23,6 @@ class BaseTrainer:
 
                 loss = calc_loss(pred_list, batch)
 
-                loss = loss / len(pred_list)
-
                 loss.backward()
                 optimizer.step()
 
