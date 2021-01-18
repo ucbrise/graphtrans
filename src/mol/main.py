@@ -4,6 +4,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchvision import transforms
 from torch_geometric.utils import degree
+from ogb.graphproppred.mol_encoder import AtomEncoder
+from data.encoders import EDGE_ENCODERS
 
 from tqdm import tqdm
 import configargparse
@@ -130,6 +132,8 @@ def main():
         deg += torch.bincount(d, minlength=deg.numel())
     args.deg = deg
 
+    node_encoder = AtomEncoder(args.emb_dim)
+    edge_encoder_cls = EDGE_ENCODERS[args.dataset]
 
     def calc_loss(pred, batch, m=1.0):
         is_labeled = batch.y == batch.y
@@ -142,7 +146,7 @@ def main():
 
     def run(run_id):
         best_val, final_test = 0, 0
-        model = model_cls(num_tasks=dataset.num_tasks, args=args, num_layer=args.num_layer, emb_dim=args.emb_dim,
+        model = model_cls(num_tasks=dataset.num_tasks, args=args, num_layer=args.num_layer, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls, emb_dim=args.emb_dim,
                         drop_ratio=args.drop_ratio).to(device)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)

@@ -19,9 +19,12 @@ from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
 from utils import ASTNodeEncoder, get_vocab_mapping
 # for data transform
 from utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+
+import sys
 from trainers import get_trainer_and_parser
 from models import get_model_and_parser
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from data.encoders import EDGE_ENCODERS
 
 import wandb
 wandb.init(project='graph-aug')
@@ -100,6 +103,7 @@ def main():
     parser.add_argument('--dataset', type=str, default="ogbg-code",
                         help='dataset name (default: ogbg-code)')
     parser.add_argument('--scheduler', type=bool, default=False)
+    parser.add_argument('--weight_decay', type=float, default=0.0)
 
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--runs', type=int, default=10)
@@ -160,6 +164,7 @@ def main():
     # 3. node depth
     node_encoder = ASTNodeEncoder(args.emb_dim, num_nodetypes=len(
         nodetypes_mapping['type']), num_nodeattributes=len(nodeattributes_mapping['attr']), max_depth=20)
+    edge_encoder_cls = EDGE_ENCODERS[args.dataset]
 
     # Compute in-degree histogram over training data.
     deg = torch.zeros(800, dtype=torch.long)
@@ -170,7 +175,8 @@ def main():
 
     def run(run_id):
         best_val, final_test = 0, 0
-        model = model_cls(args=args, num_vocab=len(vocab2idx), max_seq_len=args.max_seq_len, node_encoder=node_encoder, num_layer=args.num_layer, emb_dim=args.emb_dim, drop_ratio=args.drop_ratio).to(device)
+        model = model_cls(num_tasks=len(vocab2idx), args=args, num_layer=args.num_layer, max_seq_len=args.max_seq_len, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls, 
+                        emb_dim=args.emb_dim, drop_ratio=args.drop_ratio).to(device)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr)
         if args.scheduler:

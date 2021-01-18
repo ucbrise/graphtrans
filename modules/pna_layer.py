@@ -198,7 +198,7 @@ class PNAConvSimple(MessagePassing):
                 :class:`torch_geometric.nn.conv.MessagePassing`.
         """
 
-    def __init__(self, in_channels: int, out_channels: int,
+    def __init__(self, in_channels: int, out_channels: int, edge_encoder_cls, 
                  aggregators: List[str], scalers: List[str], deg: Tensor, drop_ratio: float = None,
                  post_layers: int = 1, add_edge='none', **kwargs):
 
@@ -211,7 +211,7 @@ class PNAConvSimple(MessagePassing):
 
         self.add_edge = add_edge
         if add_edge != 'none':
-            self.edge_encoder = nn.Linear(2, in_channels)
+            self.edge_encoder = edge_encoder_cls(in_channels)
 
         self.F_in = in_channels
         self.F_out = self.out_channels
@@ -225,10 +225,10 @@ class PNAConvSimple(MessagePassing):
 
         in_channels = (len(aggregators) * len(scalers)) * self.F_in
         modules = [nn.Linear(in_channels, self.F_out)]
-        modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
+        # modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
         for _ in range(post_layers - 1):
             modules += [nn.ReLU()]
-            modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
+            # modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
             modules += [nn.Linear(self.F_out, self.F_out)]
         self.post_nn = nn.Sequential(*modules)
         if self.add_edge == 'gincat':
