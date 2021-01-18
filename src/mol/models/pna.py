@@ -28,15 +28,15 @@ class PNANet(nn.Module):
         self.atom_encoder = AtomEncoder(emb_dim=emb_dim)
 
         self.layers = nn.ModuleList(
-            [PNAConvSimple(add_edge=add_edge, in_channels=emb_dim, out_channels=emb_dim, aggregators=self.aggregators,                       scalers=self.scalers, deg=args.deg, post_layers=args.post_layers)
+            [PNAConvSimple(add_edge=add_edge, in_channels=emb_dim, out_channels=emb_dim, aggregators=self.aggregators,scalers=self.scalers, deg=args.deg, post_layers=args.post_layers, drop_ratio=drop_ratio)
              for _ in range(num_layer)])
         self.batch_norms = nn.ModuleList([BatchNorm(emb_dim) for _ in range(num_layer)])
 
-        self.mlp = nn.Sequential(nn.Linear(emb_dim, 35), 
+        self.mlp = nn.Sequential(nn.Linear(emb_dim, 35, bias=True), 
                         nn.ReLU(), 
-                        nn.Linear(35, 17), 
+                        nn.Linear(35, 17, bias=True),
                         nn.ReLU(), 
-                        nn.Linear(17, num_tasks))
+                        nn.Linear(17, num_tasks, bias=True))
 
         ### Pooling function to generate whole-graph embeddings
         if self.graph_pooling == "sum":

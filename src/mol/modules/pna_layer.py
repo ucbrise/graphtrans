@@ -2,9 +2,9 @@ from typing import Optional, List, Dict
 from torch_geometric.typing import Adj, OptTensor
 
 import torch
+import torch.nn as nn
 import torch.nn.functional as F
 from torch import Tensor
-from torch.nn import ModuleList, Sequential, Linear, ReLU
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import reset
 from torch_geometric.utils import degree
@@ -88,23 +88,23 @@ class PNAConv(MessagePassing):
         if self.edge_dim is not None:
             self.edge_encoder = BondEncoder(emb_dim=in_channels)
 
-        self.pre_nns = ModuleList()
-        self.post_nns = ModuleList()
+        self.pre_nns = nn.ModuleList()
+        self.post_nns = nn.ModuleList()
         for _ in range(towers):
-            modules = [Linear((3 if edge_dim else 2) * self.F_in, self.F_in)]
+            modules = [nn.Linear((3 if edge_dim else 2) * self.F_in, self.F_in)]
             for _ in range(pre_layers - 1):
                 modules += [ReLU()]
-                modules += [Linear(self.F_in, self.F_in)]
+                modules += [nn.Linear(self.F_in, self.F_in)]
             self.pre_nns.append(Sequential(*modules))
 
             in_channels = (len(aggregators) * len(scalers) + 1) * self.F_in
-            modules = [Linear(in_channels, self.F_out)]
+            modules = [nn.Linear(in_channels, self.F_out)]
             for _ in range(post_layers - 1):
                 modules += [ReLU()]
-                modules += [Linear(self.F_out, self.F_out)]
+                modules += [nn.Linear(self.F_out, self.F_out)]
             self.post_nns.append(Sequential(*modules))
 
-        self.lin = Linear(out_channels, out_channels)
+        self.lin = nn.Linear(out_channels, out_channels)
 
         self.reset_parameters()
 
@@ -196,7 +196,7 @@ class PNAConvSimple(MessagePassing):
                 :class:`torch_geometric.nn.conv.MessagePassing`.
         """
     def __init__(self, in_channels: int, out_channels: int,
-                 aggregators: List[str], scalers: List[str], deg: Tensor,
+                 aggregators: List[str], scalers: List[str], deg: Tensor, drop_ratio: float=None,
                  post_layers: int = 1, add_edge='none', **kwargs):
 
         super(PNAConvSimple, self).__init__(aggr=None, node_dim=0, **kwargs)
@@ -221,13 +221,15 @@ class PNAConvSimple(MessagePassing):
         }
 
         in_channels = (len(aggregators) * len(scalers)) * self.F_in
-        modules = [Linear(in_channels, self.F_out)]
+        modules = [nn.Linear(in_channels, self.F_out)]
+        # modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
         for _ in range(post_layers - 1):
-            modules += [ReLU()]
-            modules += [Linear(self.F_out, self.F_out)]
-        self.post_nn = Sequential(*modules)
+            modules += [nn.ReLU()]
+            # modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
+            modules += [nn.Linear(self.F_out, self.F_out)]
+        self.post_nn = nn.Sequential(*modules)
         if self.add_edge == 'gincat':
-            self.pre_nn = Linear(self.F_in * 2, self.F_in)
+            self.pre_nn = nn.Linear(self.F_in * 2, self.F_in)
 
         self.reset_parameters()
 

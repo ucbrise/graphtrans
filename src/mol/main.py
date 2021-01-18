@@ -119,9 +119,9 @@ def main():
     ### automatic evaluator. takes dataset name as input
     evaluator = Evaluator(args.dataset)
 
-    train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size, shuffle=True, num_workers = args.num_workers)
-    valid_loader = DataLoader(dataset[split_idx["valid"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers)
-    test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers)
+    train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size, shuffle=True, num_workers = args.num_workers, pin_memory=True)
+    valid_loader = DataLoader(dataset[split_idx["valid"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers, pin_memory=True)
+    test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers, pin_memory=True)
 
     # Compute in-degree histogram over training data.
     deg = torch.zeros(10, dtype=torch.long)
@@ -147,7 +147,7 @@ def main():
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler:
-            scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
+            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
 
         for epoch in range(1, args.epochs + 1):
             print("=====Epoch {}=====".format(epoch))
@@ -170,7 +170,7 @@ def main():
             print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
 
             if args.scheduler:
-               scheduler.step(valid_metric)
+               scheduler.step(-valid_metric)
 
             if best_val < valid_metric:
                 best_val = valid_metric
