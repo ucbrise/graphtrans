@@ -19,10 +19,12 @@ To setup the Python environment, please install conda first. All the environment
 ## How to Run
 To run experiments:
 ```bash
-python srccode/main.py \
-    --configs configs/code/gin-virtual/flag.yml \
-    --device 0
+CUDA_VISIBLE_DEVICES=0 python src/code/main.py \
+    --configs configs/code/gin-virtual/flag.yml
 
 # Or to use slurm
 sbatch ./slurm-run.sh src/code/main.py configs/code/gin-virtual/flag.yml
+
+sbatch ./slurm-run.sh src/mol/main.py configs/molhiv/gin-virtual/flag.yml
+sbatch ./slurm-run.sh src/mol/main.py configs/molpcba/gin-virtual/flag.yml
 ```
