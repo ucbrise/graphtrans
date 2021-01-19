@@ -14,7 +14,7 @@ Graph augmentation/self-supervision/etc.
 * Augmentation
 
 ## Installation
-To setup the Python environment, please install conda first. All the environments are in `setup.sh`.
+To setup the Python environment, please install conda first. All the environments are in [setup.sh](./setup.sh).
 
 ## How to Run
 To run experiments:
