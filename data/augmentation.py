@@ -15,59 +15,53 @@ import pdb
 def no_aug(data):
     return data
 
-def drop_nodes(data):
+def drop_nodes(data, aug_ratio):
+    node_num, _ = data.x.size()
+    _, edge_num = data.edge_index.size()
+    drop_num = int(node_num * aug_ratio)
+
+    idx_perm = np.random.permutation(node_num)
+
+    idx_drop = idx_perm[:drop_num]
+    idx_nondrop = idx_perm[drop_num:]
+    idx_nondrop.sort()
+    idx_dict = {idx_nondrop[n]: n for n in list(range(idx_nondrop.shape[0]))}
+
+    edge_index = data.edge_index.numpy()
+    edge_mask = np.array([n for n in range(edge_num) if not (
+        edge_index[0, n] in idx_drop or edge_index[1, n] in idx_drop)])
+
+    edge_index = [[idx_dict[edge_index[0, n]], idx_dict[edge_index[1, n]]]
+                  for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)]
+    try:
+        data.edge_index = torch.tensor(edge_index).transpose_(0, 1)
+        data.x = data.x[idx_nondrop]
+        data.edge_attr = data.edge_attr[edge_mask]
+    except:
+        data = data
+
+    return data
+
+
+def permute_edges(data, aug_ratio):
 
     node_num, _ = data.x.size()
     _, edge_num = data.edge_index.size()
-    drop_num = int(node_num / 10)
-
-    idx_drop = np.random.choice(node_num, drop_num, replace=False)
-    idx_nondrop = [n for n in range(node_num) if not n in idx_drop]
-    idx_dict = {idx_nondrop[n]: n for n in list(range(node_num - drop_num))}
-
-    # data.x = data.x[idx_nondrop]
+    permute_num = int(edge_num * aug_ratio)
     edge_index = data.edge_index.numpy()
 
-    adj = torch.zeros((node_num, node_num))
-    adj[edge_index[0], edge_index[1]] = 1
-    adj[idx_drop, :] = 0
-    adj[:, idx_drop] = 0
-    edge_index = adj.nonzero().t()
-
-    data.edge_index = edge_index
-
-    # edge_index = [[idx_dict[edge_index[0, n]], idx_dict[edge_index[1, n]]] for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)]
-    # edge_index = [[edge_index[0, n], edge_index[1, n]] for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)] + [[n, n] for n in idx_nondrop]
-    # data.edge_index = torch.tensor(edge_index).transpose_(0, 1)
+    idx_delete = np.random.choice(edge_num, (edge_num - permute_num), replace=False)
+    data.edge_index = data.edge_index[:, idx_delete]
+    data.edge_attr = data.edge_attr[idx_delete]
 
     return data
 
 
-def permute_edges(data):
+def subgraph(data, aug_ratio):
 
     node_num, _ = data.x.size()
     _, edge_num = data.edge_index.size()
-    permute_num = int(edge_num / 10)
-
-    edge_index = data.edge_index.transpose(0, 1).numpy()
-
-    idx_add = np.random.choice(node_num, (permute_num, 2))
-    # idx_add = [[idx_add[0, n], idx_add[1, n]] for n in range(permute_num) if not (idx_add[0, n], idx_add[1, n]) in edge_index]
-
-    # edge_index = np.concatenate((np.array([edge_index[n] for n in range(edge_num) if not n in np.random.choice(edge_num, permute_num, replace=False)]), idx_add), axis=0)
-    # edge_index = np.concatenate((edge_index[np.random.choice(edge_num, edge_num-permute_num, replace=False)], idx_add), axis=0)
-    edge_index = edge_index[np.random.choice(edge_num, edge_num-permute_num, replace=False)]
-    # edge_index = [edge_index[n] for n in range(edge_num) if not n in np.random.choice(edge_num, permute_num, replace=False)] + idx_add
-    data.edge_index = torch.tensor(edge_index).transpose_(0, 1)
-
-    return data
-
-
-def subgraph(data):
-
-    node_num, _ = data.x.size()
-    _, edge_num = data.edge_index.size()
-    sub_num = int(node_num * 0.2)
+    sub_num = int(node_num * aug_ratio)
 
     edge_index = data.edge_index.numpy()
 
@@ -90,35 +84,34 @@ def subgraph(data):
     idx_drop = [n for n in range(node_num) if not n in idx_sub]
     idx_nondrop = idx_sub
     idx_dict = {idx_nondrop[n]: n for n in list(range(len(idx_nondrop)))}
+    edge_mask = np.array([n for n in range(edge_num) if (
+        edge_index[0, n] in idx_nondrop and edge_index[1, n] in idx_nondrop)])
 
-    # data.x = data.x[idx_nondrop]
     edge_index = data.edge_index.numpy()
-
-    adj = torch.zeros((node_num, node_num))
-    adj[edge_index[0], edge_index[1]] = 1
-    adj[idx_drop, :] = 0
-    adj[:, idx_drop] = 0
-    edge_index = adj.nonzero().t()
-
-    data.edge_index = edge_index
-
-    # edge_index = [[idx_dict[edge_index[0, n]], idx_dict[edge_index[1, n]]] for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)]
-    # edge_index = [[edge_index[0, n], edge_index[1, n]] for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)] + [[n, n] for n in idx_nondrop]
-    # data.edge_index = torch.tensor(edge_index).transpose_(0, 1)
+    edge_index = [[idx_dict[edge_index[0, n]], idx_dict[edge_index[1, n]]]
+                  for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)]
+    try:
+        data.edge_index = torch.tensor(edge_index).transpose_(0, 1)
+        data.x = data.x[idx_nondrop]
+        data.edge_attr = data.edge_attr[edge_mask]
+    except:
+        data = data
 
     return data
 
 
-def mask_nodes(data):
-
+def mask_nodes(data, aug_ratio):
+    # TODO: This one need to be fixed for node attributes that are not encoded.
+    raise NotImplementedError
     node_num, feat_dim = data.x.size()
-    mask_num = int(node_num / 10)
+    mask_num = int(node_num * aug_ratio)
 
+    token = data.x.mean(dim=0)
     idx_mask = np.random.choice(node_num, mask_num, replace=False)
-    data.x[idx_mask] = torch.tensor(np.random.normal(
-        loc=0.5, scale=0.5, size=(mask_num, feat_dim)), dtype=data.x.dtype)
+    data.x[idx_mask] = torch.tensor(token, dtype=torch.float32)
 
     return data
+
 
 
 AUGMENTATIONS = {

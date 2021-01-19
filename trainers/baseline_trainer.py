@@ -3,4 +3,6 @@ from trainers import register_trainer
 
 @register_trainer("baseline")
 class BaselineTrainer(BaseTrainer):
-    pass
+    @staticmethod
+    def name(args):
+        return "baseline"

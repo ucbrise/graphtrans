@@ -2,9 +2,10 @@ from tqdm import tqdm
 import torch
 
 class BaseTrainer:
+    augment = lambda x: x
     @staticmethod
-    def transform(args):
-        return None
+    def augment(args):
+        return lambda x: x
 
     @staticmethod
     def add_args(parser):
@@ -33,3 +34,7 @@ class BaseTrainer:
 
         print('Average training loss: {}'.format(loss_accum / (step + 1)))
         return loss_accum / (step + 1)
+
+    @staticmethod
+    def name(args):
+        raise NotImplemented

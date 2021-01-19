@@ -98,7 +98,7 @@ def main():
     args = parser.parse_args()
     data_transform = trainer.transform(args)
 
-    run_name = f'{args.dataset}+{args.gnn}+{args.aug}'
+    run_name = f'{args.dataset}+{args.gnn}+{trainer.name(args)}'
     wandb.run.name = run_name
     wandb.run.save()
 
@@ -128,7 +128,7 @@ def main():
 
     # Compute in-degree histogram over training data.
     deg = torch.zeros(10, dtype=torch.long)
-    for data in dataset[split_idx['train']]:
+    for data in dataset_eval[split_idx['train']]:
         d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
         deg += torch.bincount(d, minlength=deg.numel())
     args.deg = deg

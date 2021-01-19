@@ -50,3 +50,7 @@ class FlagTrainer(BaseTrainer):
                 loss_accum += loss.item()
 
         return loss_accum / (step + 1)
+
+    @staticmethod
+    def name(args):
+        return "flag"
