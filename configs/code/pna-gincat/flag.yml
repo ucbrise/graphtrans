@@ -7,3 +7,5 @@ scheduler: True
 lr: 0.01
 num_layer: 4
 epochs: 60
+weight_decay: 3e-6
+drop_ratio: 0.3

@@ -2,6 +2,9 @@ from tqdm import tqdm
 import torch
 
 class BaseTrainer:
+    @staticmethod
+    def transform(args):
+        return None
 
     @staticmethod
     def add_args(parser):

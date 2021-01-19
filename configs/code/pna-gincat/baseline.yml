@@ -4,7 +4,7 @@ gnn: pna-gincat
 runs: 5
 emb_dim: 70
 scheduler: True
-lr: 0.003
+lr: 0.01
 num_layer: 4
 epochs: 60
 weight_decay: 3e-6

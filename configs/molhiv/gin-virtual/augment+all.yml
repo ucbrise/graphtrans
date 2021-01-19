@@ -1,0 +1,5 @@
+dataset: ogbg-molhiv
+aug: augment
+aug_list: [dnodes, pedges, subgraph, mask_nodes]
+gnn: gin-virtual
+runs: 5

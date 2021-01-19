@@ -59,7 +59,7 @@ def main():
 
     parser.add_argument('--data_root', type=str, default='/data/zhwu/ogb')
     parser.add_argument('--aug', type=str, default='baseline',
-                        help='augment method to use [baseline|flag]')
+                        help='augment method to use [baseline|flag|augment]')
                         
     parser.add_argument('--device', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
@@ -95,8 +95,8 @@ def main():
     trainer = get_trainer_and_parser(args, parser)
     train = trainer.train
     model_cls = get_model_and_parser(args, parser)
-
     args = parser.parse_args()
+    data_transform = trainer.transform(args)
 
     run_name = f'{args.dataset}+{args.gnn}+{args.aug}'
     wandb.run.name = run_name
@@ -105,7 +105,8 @@ def main():
     device = torch.device("cuda") if torch.cuda.is_available() and args.device >= 0 else torch.device("cpu")
 
     ### automatic dataloading and splitting
-    dataset = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
+    dataset = PygGraphPropPredDataset(name = args.dataset, root=args.data_root, transform=data_transform)
+    dataset_eval = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
     task_type = dataset.task_type
 
     if args.feature == 'full':
@@ -122,8 +123,8 @@ def main():
     evaluator = Evaluator(args.dataset)
 
     train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size, shuffle=True, num_workers = args.num_workers, pin_memory=True)
-    valid_loader = DataLoader(dataset[split_idx["valid"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers, pin_memory=True)
-    test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers, pin_memory=True)
+    valid_loader = DataLoader(dataset_eval[split_idx["valid"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers, pin_memory=True)
+    test_loader = DataLoader(dataset_eval[split_idx["test"]], batch_size=args.batch_size, shuffle=False, num_workers = args.num_workers, pin_memory=True)
 
     # Compute in-degree histogram over training data.
     deg = torch.zeros(10, dtype=torch.long)
