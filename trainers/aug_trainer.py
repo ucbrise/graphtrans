@@ -12,7 +12,7 @@ class AugTrainer(BaseTrainer):
     def add_args(parser):
         # fmt: off
         parser.add_argument('--aug_list', type=str, nargs='+', default=["none"],
-                help="augmentation can be selected from [nnodes|pedges|subgraph|mask_nodes|none]")
+                help="augmentation can be selected from [dnodes|pedges|subgraph|mask_nodes|none]")
         # fmt: on
 
     @staticmethod
