@@ -19,15 +19,18 @@ from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
 from utils import ASTNodeEncoder, get_vocab_mapping
 # for data transform
 from utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
-from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 import sys
 from trainers import get_trainer_and_parser
 from models import get_model_and_parser
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from data.encoders import EDGE_ENCODERS
 
+from datetime import datetime
 import wandb
 wandb.init(project='graph-aug')
+now = datetime.now()
+now = now.strftime("%m_%d-%H_%M_%S")
 
 multicls_criterion = torch.nn.CrossEntropyLoss()
 def calc_loss(pred_list, batch, m=1.0):
@@ -118,17 +121,26 @@ def main():
     model_cls = get_model_and_parser(args, parser)
 
     args = parser.parse_args()
+    data_transform = trainer.transform(args)
 
-    run_name = f'{args.dataset}+{args.gnn}+{args.aug}'
+    run_name = f'{args.dataset}+{args.gnn}+{trainer.name(args)}'
+    if args.scheduler:
+        run_name = run_name+f'+scheduler'
     wandb.run.name = run_name
     wandb.run.save()
 
     device = torch.device("cuda") if torch.cuda.is_available() and args.device >= 0 else torch.device("cpu")
+    args.save_path = f'exps/{run_name}-{now}'
+    os.makedirs(args.save_path, exist_ok=True)
+    if args.resume is not None:
+        args.save_path = args.resume
     print(args)
 
     # automatic dataloading and splitting
-    dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root)
-
+    dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)
+    dataset_eval = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
+    task_type = dataset.task_type
+    
     seq_len_list = np.array([len(seq) for seq in dataset.data.y])
     print('Target seqence less or equal to {} is {}%.'.format(
         args.max_seq_len, np.sum(seq_len_list <= args.max_seq_len) / len(seq_len_list)))
@@ -141,18 +153,22 @@ def main():
     # set the transform function
     # augment_edge: add next-token edge as well as inverse edges. add edge attributes.
     # encode_y_to_arr: add y_arr to PyG data object, indicating the array representation of a sequence.
-    dataset.transform = transforms.Compose(
-        [augment_edge, lambda data: encode_y_to_arr(data, vocab2idx, args.max_seq_len)])
+    dataset_transform = [augment_edge, lambda data: encode_y_to_arr(data, vocab2idx, args.max_seq_len)]
+    dataset_eval.transform = transforms.Compose(dataset_transform)
+    if dataset.transform is None:
+        dataset.transform = transforms.Compose(dataset_transform)
+    else:
+        dataset.transform = transforms.Compose(dataset_transform.append(dataset.transform))
 
     # automatic evaluator. takes dataset name as input
     evaluator = Evaluator(args.dataset)
 
     train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size,
-                              shuffle=True, num_workers=args.num_workers)
-    valid_loader = DataLoader(dataset[split_idx["valid"]], batch_size=args.batch_size,
-                              shuffle=False, num_workers=args.num_workers)
+                              shuffle=True, num_workers=args.num_workers, pin_memory=True)
+    valid_loader = DataLoader(dataset_eval[split_idx["valid"]], batch_size=args.batch_size,
+                              shuffle=False, num_workers=args.num_workers, pin_memory=True)
     test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size,
-                             shuffle=False, num_workers=args.num_workers)
+                             shuffle=False, num_workers=args.num_workers, pin_memory=True)
 
     nodetypes_mapping = pd.read_csv(os.path.join(dataset.root, 'mapping', 'typeidx2type.csv.gz'))
     nodeattributes_mapping = pd.read_csv(os.path.join(dataset.root, 'mapping', 'attridx2attr.csv.gz'))
@@ -178,12 +194,24 @@ def main():
         model = model_cls(num_tasks=len(vocab2idx), args=args, num_layer=args.num_layer, max_seq_len=args.max_seq_len, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls, 
                         emb_dim=args.emb_dim, drop_ratio=args.drop_ratio).to(device)
 
-        optimizer = optim.Adam(model.parameters(), lr=args.lr)
+        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler:
-            scheduler = ReduceLROnPlateau(optimizer, mode='max', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
+            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
+
+        # Load resume model, if any
+        start_epoch = 1
+        last_model_path = os.path.join(args.save_path, str(run_id), 'last_model.pt')
+        if os.path.exists(last_model_path):
+            state_dict = torch.load(last_model_path)
+            start_epoch = state_dict["epoch"] + 1
+            model.load_state_dict(state_dict['model'])
+            optimizer.load_state_dict(state_dict['optimizer'])
+            if args.scheduler:
+                scheduler.load_state_dict(state_dict['scheduler'])
+            print("[Resume] Loaded:", last_model_path, "epoch:", start_epoch)
 
 
-        for epoch in range(1, args.epochs + 1):
+        for epoch in range(start_epoch, args.epochs + 1):
             print("=====Epoch {}=====".format(epoch))
             print('Training...')
             loss = train(model, device, train_loader, optimizer, args, calc_loss)
@@ -211,10 +239,28 @@ def main():
                         'epoch': epoch})
                 print(f"Running: {run_name} (runs {run_id})")
                 print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
+                
+                # Save checkpoints
+                state_dict = {
+                    "model": model.state_dict(),
+                    "optimizer": optimizer.state_dict(),
+                    "epoch": epoch
+                }
+                state_dict["scheduler"] = scheduler.state_dict() if args.scheduler else None
+                torch.save(state_dict, os.path.join(args.save_path, str(run_id), 'last_model.pt'))
+                print("[Save] Save model:", os.path.join(args.save_path, str(run_id), 'last_model.pt'))
                 if best_val < valid_metric:
                     best_val = valid_metric
                     final_test = test_metric
-        return best_val, final_test
+                    torch.save(state_dict, os.path.join(args.save_path, str(run_id), 'best_model.pt'))
+                    print("[Best Model] Save model:", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
+                    
+        state_dict = torch.load(os.path.join(args.save_path, str(run_id), 'best_model.pt'))
+        print("[Evaluate] Loaded from", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
+        model.load_state_dict(state_dict['model'])
+        best_valid_perf = eval(model, device, valid_loader, evaluator)
+        best_test_perf = eval(model, device, test_loader, evaluator)
+        return best_valid_perf[dataset.eval_metric], best_test_perf[dataset.eval_metric]
 
     vals, tests = [], []
     for run_id in range(args.runs):
