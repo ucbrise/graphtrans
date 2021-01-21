@@ -23,7 +23,7 @@ class AugTrainer(BaseTrainer):
             node_num = data.edge_index.max()
 
             n = np.random.randint(len(aug))
-            data_aug = aug[n](deepcopy(data), args.aug_ratio)
+            data_aug = aug[n](data, args.aug_ratio)
             data_aug.num_nodes = data_aug.x.size(0)
 
             return data_aug

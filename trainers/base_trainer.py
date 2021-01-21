@@ -4,8 +4,8 @@ import torch
 class BaseTrainer:
     augment = lambda x: x
     @staticmethod
-    def augment(args):
-        return lambda x: x
+    def transform(args):
+        return None
 
     @staticmethod
     def add_args(parser):
