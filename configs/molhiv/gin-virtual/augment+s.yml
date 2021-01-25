@@ -1,6 +1,6 @@
 dataset: ogbg-molhiv
 aug: augment
-aug_list: [dnodes, pedges, subgraph]
+aug_list: [subgraph]
 gnn: gin-virtual
 runs: 5
 batch_size: 256

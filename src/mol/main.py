@@ -231,7 +231,7 @@ def main():
         best_val, final_test = run(run_id)
         vals.append(best_val)
         tests.append(final_test)
-        print(f'Run {run} - val: {best_val}, test: {final_test}')
+        print(f'Run {run_id} - val: {best_val}, test: {final_test}')
     print(f"Average val accuracy: {np.mean(vals)} ± {np.std(vals)}")
     print(f"Average test accuracy: {np.mean(tests)} ± {np.std(tests)}")
 

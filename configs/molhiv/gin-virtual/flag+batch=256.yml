@@ -3,3 +3,6 @@ aug: flag
 gnn: gin-virtual
 runs: 5
 step-size: 1e-3
+batch_size: 256
+lr: 0.01
+scheduler: True

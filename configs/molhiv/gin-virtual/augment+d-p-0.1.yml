@@ -1,8 +1,9 @@
 dataset: ogbg-molhiv
 aug: augment
-aug_list: [dnodes, pedges, subgraph]
+aug_list: [dnodes, pedges]
 gnn: gin-virtual
 runs: 5
+aug_ratio: 0.1
 batch_size: 256
 lr: 0.01
 scheduler: True

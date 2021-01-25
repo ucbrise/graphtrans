@@ -1,0 +1,5 @@
+dataset: ogbg-molhiv
+aug: augment
+aug_list: [pedges]
+gnn: gin-virtual
+runs: 5
