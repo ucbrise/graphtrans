@@ -61,7 +61,7 @@ def subgraph(data, aug_ratio):
 
     node_num, _ = data.x.size()
     _, edge_num = data.edge_index.size()
-    sub_num = int(node_num * aug_ratio)
+    sub_num = node_num - int(node_num * aug_ratio)
 
     edge_index = data.edge_index.numpy()
 
