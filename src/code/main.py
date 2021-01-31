@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from torchvision import transforms
 from torch_geometric.utils import degree
 
+import random
 from tqdm import tqdm
 import configargparse
 import time
@@ -83,7 +84,7 @@ def main():
     parser.add_argument('--aug', type=str, default='baseline',
                         help='augment method to use [baseline|flag]')
                         
-    parser.add_argument('--device', type=int, default=0,
+    parser.add_argument('--devices', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
     parser.add_argument('--gnn', type=str, default='gcn-virtual',
                         help='GNN gin, gin-virtual, or gcn, or gcn-virtual (default: gcn-virtual)')
@@ -111,6 +112,8 @@ def main():
     parser.add_argument('--lr', type=float, default=0.001)
     parser.add_argument('--runs', type=int, default=10)
     parser.add_argument('--test-freq', type=int, default=1)
+    parser.add_argument('--resume', type=str, default=None)
+    parser.add_argument('--seed', type=int, default=None)
     # fmt: on
 
     args, _ = parser.parse_known_args()
@@ -126,15 +129,27 @@ def main():
     run_name = f'{args.dataset}+{args.gnn}+{trainer.name(args)}'
     if args.scheduler:
         run_name = run_name+f'+scheduler'
+    if args.seed:
+        run_name = run_name + f'+seed{args.seed}'
     wandb.run.name = run_name
     wandb.run.save()
 
-    device = torch.device("cuda") if torch.cuda.is_available() and args.device >= 0 else torch.device("cpu")
+    device = torch.device("cuda") if torch.cuda.is_available() and args.devices >= 0 else torch.device("cpu")
+    
     args.save_path = f'exps/{run_name}-{now}'
     os.makedirs(args.save_path, exist_ok=True)
     if args.resume is not None:
         args.save_path = args.resume
     print(args)
+
+    if args.seed is not None:
+        random.seed(args.seed)
+        np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+
+        if device == torch.cuda.is_available():
+            cudnn.deterministic = True
+            torch.cuda.manual_seed(args.seed)
 
     # automatic dataloading and splitting
     dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)

@@ -1,0 +1,4 @@
+aug: baseline
+gnn: gin-virtual
+runs: 1
+seed: 12344

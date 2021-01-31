@@ -64,7 +64,7 @@ def main():
     parser.add_argument('--aug', type=str, default='baseline',
                         help='augment method to use [baseline|flag]')
                         
-    parser.add_argument('--device', type=int, default=0,
+    parser.add_argument('--devices', type=int, default=0,
                         help='which gpu to use if any (default: 0)')
     parser.add_argument('--gnn', type=str, default='gcn-virtual',
                         help='GNN gin, gin-virtual, or gcn, or gcn-virtual (default: gcn-virtual)')
@@ -100,7 +100,7 @@ def main():
     wandb.run.name = run_name
     wandb.run.save()
 
-    device = torch.device("cuda") if torch.cuda.is_available() and args.device >= 0 else torch.device("cpu")
+    device = torch.device("cuda") if torch.cuda.is_available() and args.devices >= 0 else torch.device("cpu")
 
     ### automatic dataloading and splitting
 
