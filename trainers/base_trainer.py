@@ -2,7 +2,6 @@ from tqdm import tqdm
 import torch
 
 class BaseTrainer:
-    augment = lambda x: x
     @staticmethod
     def transform(args):
         return None
