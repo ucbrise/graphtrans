@@ -20,7 +20,6 @@ class AugTrainer(BaseTrainer):
     def transform(args):
         def transform_fn(data):
             aug = make_aug_list(args.aug_list)
-            node_num = data.edge_index.max()
 
             n = np.random.randint(len(aug))
             data_aug = aug[n](data, args.aug_ratio)

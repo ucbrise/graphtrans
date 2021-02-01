@@ -1,0 +1,10 @@
+dataset: ogbg-molhiv
+aug: augment
+aug_list: [dnodes]
+gnn: gin-virtual
+runs: 5
+batch_size: 256
+lr: 0.01
+scheduler: True
+
+aug_ratio: 0.3
