@@ -9,6 +9,10 @@ import torch.nn.functional as F
 
 class PNANet(nn.Module):
     @staticmethod
+    def need_deg():
+        return True
+        
+    @staticmethod
     def add_args(parser):
         group = parser.add_argument_group('PNANet configs')
         group.add_argument('--aggregators', type=str, nargs='+', default=['mean', 'max', 'min', 'std'])

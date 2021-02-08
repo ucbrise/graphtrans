@@ -155,10 +155,16 @@ def main():
 
     # Compute in-degree histogram over training data.
     deg = torch.zeros(10, dtype=torch.long)
+    num_nodes = 0.0
+    num_graphs = 0
     for data in dataset_eval[split_idx['train']]:
         d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
         deg += torch.bincount(d, minlength=deg.numel())
+        num_nodes += data.num_nodes
+        num_graphs +=1
     args.deg = deg
+    print("Avg num nodes:", num_nodes / num_graphs)
+    print("Avg deg:", deg)
 
     node_encoder = AtomEncoder(args.emb_dim)
     edge_encoder_cls = EDGE_ENCODERS[args.dataset]

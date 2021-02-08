@@ -33,12 +33,14 @@ def drop_nodes(data, aug_ratio):
 
     edge_index = [[idx_dict[edge_index[0, n]], idx_dict[edge_index[1, n]]]
                   for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)]
-    try:
+    if len(edge_index) > 0:
         data.edge_index = torch.tensor(edge_index).transpose_(0, 1)
-        data.x = data.x[idx_nondrop]
-        data.edge_attr = data.edge_attr[edge_mask]
-    except:
-        data = data
+    else: 
+        data.edge_index = torch.tensor([[], []], dtype=torch.long)
+    data.edge_attr = data.edge_attr[edge_mask]
+    data.x = data.x[idx_nondrop]
+    if hasattr(data, "node_depth"):
+        data.node_depth = data.node_depth[idx_nondrop]
 
     return data
 
@@ -50,9 +52,9 @@ def permute_edges(data, aug_ratio):
     permute_num = int(edge_num * aug_ratio)
     edge_index = data.edge_index.numpy()
 
-    idx_delete = np.random.choice(edge_num, (edge_num - permute_num), replace=False)
-    data.edge_index = data.edge_index[:, idx_delete]
-    data.edge_attr = data.edge_attr[idx_delete]
+    idx_remain = np.random.choice(edge_num, (edge_num - permute_num), replace=False)
+    data.edge_index = data.edge_index[:, idx_remain]
+    data.edge_attr = data.edge_attr[idx_remain]
 
     return data
 
@@ -90,12 +92,14 @@ def subgraph(data, aug_ratio):
     edge_index = data.edge_index.numpy()
     edge_index = [[idx_dict[edge_index[0, n]], idx_dict[edge_index[1, n]]]
                   for n in range(edge_num) if (not edge_index[0, n] in idx_drop) and (not edge_index[1, n] in idx_drop)]
-    try:
+    if len(edge_index) > 0:
         data.edge_index = torch.tensor(edge_index).transpose_(0, 1)
-        data.x = data.x[idx_nondrop]
-        data.edge_attr = data.edge_attr[edge_mask]
-    except:
-        data = data
+    else:
+        data.edge_index = torch.tensor([[], []], dtype=torch.long)
+    data.x = data.x[idx_nondrop]
+    data.edge_attr = data.edge_attr[edge_mask]
+    if hasattr(data, "node_depth"):
+        data.node_depth = data.node_depth[idx_nondrop]
 
     return data
 

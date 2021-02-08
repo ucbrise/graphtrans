@@ -170,10 +170,9 @@ def main():
     # encode_y_to_arr: add y_arr to PyG data object, indicating the array representation of a sequence.
     dataset_transform = [augment_edge, lambda data: encode_y_to_arr(data, vocab2idx, args.max_seq_len)]
     dataset_eval.transform = transforms.Compose(dataset_transform)
-    if dataset.transform is None:
-        dataset.transform = transforms.Compose(dataset_transform)
-    else:
-        dataset.transform = transforms.Compose(dataset_transform.append(dataset.transform))
+    if dataset.transform is not None:
+        dataset_transform.append(dataset.transform)
+    dataset.transform = transforms.Compose(dataset_transform)
 
     # automatic evaluator. takes dataset name as input
     evaluator = Evaluator(args.dataset)
@@ -198,13 +197,21 @@ def main():
     edge_encoder_cls = EDGE_ENCODERS[args.dataset]
 
     # Compute in-degree histogram over training data.
-    deg = torch.zeros(800, dtype=torch.long)
-    for data in dataset[split_idx['train']]:
-        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-        deg += torch.bincount(d, minlength=deg.numel())
-    args.deg = deg
+    if model_cls.need_deg():
+        deg = torch.zeros(800, dtype=torch.long)
+        num_nodes = 0.0
+        num_graphs = 0
+        for data in dataset_eval[split_idx['train']]:
+            d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
+            deg += torch.bincount(d, minlength=deg.numel())
+            num_nodes += data.num_nodes
+            num_graphs +=1
+        args.deg = deg
+        print("Avg num nodes:", num_nodes / num_graphs)
+        print("Avg deg:", deg)
 
     def run(run_id):
+        os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
         model = model_cls(num_tasks=len(vocab2idx), args=args, num_layer=args.num_layer, max_seq_len=args.max_seq_len, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls, 
                         emb_dim=args.emb_dim, drop_ratio=args.drop_ratio).to(device)

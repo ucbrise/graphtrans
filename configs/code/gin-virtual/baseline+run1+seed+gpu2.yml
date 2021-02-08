@@ -1,0 +1,7 @@
+aug: baseline
+gnn: gin-virtual
+runs: 1
+seed: 12344
+
+batch_size: 256
+lr: 0.0003

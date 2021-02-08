@@ -8,7 +8,9 @@ from modules.conv import GINConv, GCNConv
 from torch_scatter import scatter_mean
 
 class GNN(torch.nn.Module):
-
+    @staticmethod
+    def need_deg():
+        return False
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args, max_seq_len = None, num_layer = 5, emb_dim = 300, 
                 gnn_type = 'gin', virtual_node = True, residual = False, drop_ratio = 0.5, JK = "last", graph_pooling = "mean"):
         """
@@ -91,6 +93,9 @@ class GNN_node(torch.nn.Module):
     Output:
         node representations
     """
+    @staticmethod
+    def need_deg():
+        return False
     
     def __init__(self, num_layer, emb_dim, node_encoder, edge_encoder_cls, drop_ratio=0.5, JK="last", residual=False, gnn_type='gin'):
         '''
@@ -167,6 +172,9 @@ class GNN_node_Virtualnode(torch.nn.Module):
     Output:
         node representations
     """
+    @staticmethod
+    def need_deg():
+        return False
 
     def __init__(self, num_layer, emb_dim, node_encoder, edge_encoder_cls, drop_ratio=0.5, JK="last", residual=False, gnn_type='gin'):
         '''
