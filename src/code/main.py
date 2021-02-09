@@ -280,8 +280,10 @@ def main():
         state_dict = torch.load(os.path.join(args.save_path, str(run_id), 'best_model.pt'))
         print("[Evaluate] Loaded from", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
         model.load_state_dict(state_dict['model'])
-        best_valid_perf = eval(model, device, valid_loader, evaluator)
-        best_test_perf = eval(model, device, test_loader, evaluator)
+        best_valid_perf = eval(model, device, valid_loader, evaluator,
+                                arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
+        best_test_perf = eval(model, device, test_loader, evaluator,
+                              arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
         return best_valid_perf[dataset.eval_metric], best_test_perf[dataset.eval_metric]
 
     vals, tests = [], []
