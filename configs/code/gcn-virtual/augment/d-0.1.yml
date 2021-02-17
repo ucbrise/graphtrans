@@ -1,0 +1,8 @@
+aug: baseline
+gnn: gcn-virtual
+aug: augment
+aug_list: [dnodes]
+runs: 1
+seed: 12344
+
+aug_ratio: 0.1
