@@ -119,16 +119,17 @@ def mask_nodes(data, aug_ratio):
     return data
 
 def mask_eigval(data, aug_ratio):
-    raise NotImplementedError
+    # raise NotImplementedError
     num_nodes = data.num_nodes
     assert not contains_self_loops(data.edge_index)
     assert data.edge_attr is None
     
     edge_index, edge_weight = get_laplacian(data.edge_index, num_nodes=num_nodes)
     L = to_dense_adj(edge_index, edge_attr=edge_weight, max_num_nodes=num_nodes)[0]
-    print("num_node", num_nodes)
-    print(edge_index.size())
-    print(L)
+    # print("num_node", num_nodes)
+    # print(edge_index.size())
+    # print(edge_index)
+    # print(L)
 
     eigval, eigvec = torch.symeig(L, eigenvectors=True)
 
@@ -138,13 +139,13 @@ def mask_eigval(data, aug_ratio):
 
 
     L = torch.matmul(eigvec, torch.matmul(eigval.diag_embed(), eigvec.transpose(-2, -1)))
-    L.masked_fill_(L.abs().lt(1), 0)
-    print(L)
+    L.masked_fill_(L.abs().lt(0.05), 0)
+    # print(L)
 
     edge_index = L.nonzero(as_tuple=False).t().contiguous()
     edge_index, _ = remove_self_loops(edge_index)
-    print(edge_index.size())
-    print(edge_index)
+    # print(edge_index.size())
+    # print(edge_index)
     # print(edge_index.size())
     # print(edge_index)
     # perm = idx_adj[edge_index[0], edge_index[1]] - 1
