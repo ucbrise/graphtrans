@@ -1,3 +1,4 @@
+dataset: ogbg-code2
 aug: baseline
 gnn: gcn-virtual
 runs: 1

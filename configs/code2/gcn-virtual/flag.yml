@@ -1,0 +1,6 @@
+dataset: ogbg-code2
+
+aug: flag
+gnn: gcn-virtual
+seed: 12344
+runs: 1
