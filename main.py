@@ -42,6 +42,7 @@ def main():
                         help='maximum sequence length to predict (default: None)')
    
     group = parser.add_argument_group('model')
+    group.add_argument('--model_type', type=str, default='gnn', help='gnn|pna|gnn-transformer')
     group.add_argument('--graph_pooling', type=str, default='mean')
     group = parser.add_argument_group('gnn')
     group.add_argument('--gnn_type', type=str, default='gcn')

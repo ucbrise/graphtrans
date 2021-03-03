@@ -1,6 +1,6 @@
 dataset: ogbg-code
 aug: baseline
-gnn_type: pna
+model_type: pna
 add_edge: gincat
 runs: 5
 gnn_emb_dim: 70

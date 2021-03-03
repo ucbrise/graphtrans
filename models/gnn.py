@@ -1,7 +1,7 @@
 import torch
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
 import torch.nn.functional as F
-from modules.gnn_module import GNN_node, GNN_node_Virtualnode
+from modules.gnn_module import GNNNodeEmbedding
 
 class GNN(torch.nn.Module):
     @staticmethod
@@ -30,11 +30,7 @@ class GNN(torch.nn.Module):
             raise ValueError("Number of GNN layers must be greater than 1.")
 
         ### GNN to generate node embeddings
-        if args.gnn_virtual_node:
-            self.gnn_node = GNN_node_Virtualnode(self.num_layer, self.emb_dim, node_encoder, edge_encoder_cls, JK = self.JK, drop_ratio = self.drop_ratio, residual = args.gnn_residual, gnn_type = args.gnn_type)
-        else:
-            self.gnn_node = GNN_node(self.num_layer, self.emb_dim, node_encoder, edge_encoder_cls, JK = self.JK, drop_ratio = self.drop_ratio, residual = args.gnn_residual, gnn_type = args.gnn_type)
-
+        self.gnn_node = GNNNodeEmbedding(args.gnn_virtual_node, self.num_layer, self.emb_dim, node_encoder, edge_encoder_cls, JK = self.JK, drop_ratio = self.drop_ratio, residual = args.gnn_residual, gnn_type = args.gnn_type)
 
         ### Pooling function to generate whole-graph embeddings
         if self.graph_pooling == "sum":

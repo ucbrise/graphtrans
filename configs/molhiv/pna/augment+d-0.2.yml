@@ -3,7 +3,7 @@ aug: augment
 aug_list: [dnodes]
 aug_ratio: 0.2
 
-gnn_type: pna
+model_type: pna
 runs: 5
 gnn_emb_dim: 70
 scheduler: True

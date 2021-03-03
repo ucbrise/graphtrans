@@ -1,6 +1,7 @@
 dataset: ogbg-molhiv
 aug: augment
 aug_list: [dnodes]
+model_type: gnn
 gnn_type: gin
 gnn_virtual_node: true
 runs: 5

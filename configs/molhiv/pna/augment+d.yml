@@ -1,7 +1,7 @@
 dataset: ogbg-molhiv
 aug: augment
 aug_list: [dnodes]
-gnn_type: pna
+model_type: pna
 runs: 5
 gnn_emb_dim: 70
 scheduler: True

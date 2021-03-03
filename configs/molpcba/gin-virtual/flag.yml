@@ -1,5 +1,6 @@
 dataset: ogbg-molpcba
 aug: flag
+model_type: gnn
 gnn_type: gin
 gnn_virtual_node: true
 runs: 5

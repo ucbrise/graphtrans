@@ -1,5 +1,6 @@
 dataset: ogbg-code2
 aug: baseline
+model_type: gnn
 gnn_type: gcn
 gnn_virtual_node: true
 runs: 1

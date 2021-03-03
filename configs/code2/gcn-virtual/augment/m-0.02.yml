@@ -1,4 +1,5 @@
 dataset: ogbg-code2
+model_type: gnn
 gnn_type: gcn
 gnn_virtual_node: true
 aug: augment

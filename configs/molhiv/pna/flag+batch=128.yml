@@ -1,6 +1,6 @@
 dataset: ogbg-molhiv
 aug: flag
-gnn_type: pna
+model_type: pna
 runs: 5
 gnn_emb_dim: 70
 scheduler: True
