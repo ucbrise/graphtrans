@@ -7,7 +7,7 @@ gnn_virtual_node: true
 
 graph_pooling: last
 
-batch_size: 2
+batch_size: 16
 lr: 0.0001
 
 runs: 1

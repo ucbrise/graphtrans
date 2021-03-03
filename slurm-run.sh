@@ -19,5 +19,5 @@ conda activate graph-aug
 
 echo CUDA_VISIBLE_DEVICES $CUDA_VISIBLE_DEVICES
 
-echo "$script" $CUDA_VISIBLE_DEVICES
-python $script --configs $config --num_workers 8 --devices $CUDA_VISIBLE_DEVICES
+echo "python main.py --configs $config --num_workers 8 --devices $CUDA_VISIBLE_DEVICES"
+python main.py --configs $config --num_workers 8 --devices $CUDA_VISIBLE_DEVICES

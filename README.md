@@ -21,12 +21,16 @@ All the required environments are in [setup.sh](./setup.sh).
 ## How to Run
 To run experiments:
 ```bash
-CUDA_VISIBLE_DEVICES=0 python src/code/main.py \
+CUDA_VISIBLE_DEVICES=0 python main.py \
     --configs configs/code2/gcn-virtual/flag.yml
 
 # Or to use slurm
-sbatch ./slurm-run.sh src/code/main.py configs/code2/gcn-virtual/flag.yml
+sbatch ./slurm-run.sh configs/code2/gcn-virtual/flag.yml
+```
 
-sbatch ./slurm-run.sh src/mol/main.py configs/molhiv/gin-virtual/flag.yml
-sbatch ./slurm-run.sh src/mol/main.py configs/molpcba/gin-virtual/flag.yml
+## Exps
+### GNN-Transformer
+```bash
+CUDA_VISIBLE_DEVICES=0 python main.py \
+    --configs configs/code2/gnn-transformer/baseline.yml
 ```
