@@ -1,5 +1,6 @@
 dataset: ogbg-code2
-gnn: gcn-virtual
+gnn_type: gcn
+gnn_virtual_node: true
 aug: augment
 aug_list: [dnodes]
 runs: 1

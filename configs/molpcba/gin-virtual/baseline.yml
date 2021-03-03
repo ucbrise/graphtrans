@@ -1,4 +1,5 @@
 dataset: ogbg-molpcba
 aug: baseline
-gnn: gin-virtual
+gnn_type: gin
+gnn_virtual_node: true
 runs: 5

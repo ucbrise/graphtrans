@@ -1,11 +1,12 @@
 dataset: ogbg-code
 aug: flag
-gnn: pna-gincat
+gnn_type: pna
+add_edge: gincat
 runs: 5
-emb_dim: 70
+gnn_emb_dim: 70
 scheduler: True
 lr: 0.01
-num_layer: 4
+gnn_num_layer: 4
 epochs: 60
 weight_decay: 3e-6
-drop_ratio: 0.3
+gnn_dropout: 0.3

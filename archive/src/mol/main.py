@@ -7,6 +7,7 @@ from torchvision import transforms
 from torch_geometric.utils import degree
 from ogb.graphproppred.mol_encoder import AtomEncoder
 from data.encoders import EDGE_ENCODERS
+from data import LOSSES, EVALS
 
 import random
 from tqdm import tqdm
@@ -24,39 +25,10 @@ from models import get_model_and_parser
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 from datetime import datetime
-
 import wandb
 wandb.init(project='graph-aug')
-
-cls_criterion = torch.nn.BCEWithLogitsLoss()
-reg_criterion = torch.nn.MSELoss()
-
 now = datetime.now()
 now = now.strftime("%m_%d-%H_%M_%S")
-
-def eval(model, device, loader, evaluator):
-    model.eval()
-    y_true = []
-    y_pred = []
-
-    for step, batch in enumerate(loader):
-        batch = batch.to(device)
-
-        if batch.x.shape[0] == 1:
-            pass
-        else:
-            with torch.no_grad():
-                pred = model(batch)
-
-            y_true.append(batch.y.view(pred.shape).detach().cpu())
-            y_pred.append(pred.detach().cpu())
-
-    y_true = torch.cat(y_true, dim = 0).numpy()
-    y_pred = torch.cat(y_pred, dim = 0).numpy()
-
-    input_dict = {"y_true": y_true, "y_pred": y_pred}
-
-    return evaluator.eval(input_dict)
 
 def main():
     # fmt: off
@@ -65,37 +37,45 @@ def main():
     parser.add_argument('--configs', required=False, is_config_file=True)
 
     parser.add_argument('--data_root', type=str, default='/data/zhwu/ogb')
+    parser.add_argument('--dataset', type=str, default="ogbg-molhiv",
+                        help='dataset name (default: ogbg-ppa)')
     parser.add_argument('--aug', type=str, default='baseline',
                         help='augment method to use [baseline|flag|augment]')
                         
-    parser.add_argument('--devices', type=int, default=0,
-                        help='which gpu to use if any (default: 0)')
-    parser.add_argument('--gnn', type=str, default='gcn-virtual',
-                        help='GNN gin, gin-virtual, or gcn, or gcn-virtual (default: gcn-virtual)')
-    parser.add_argument('--drop_ratio', type=float, default=0.5,
-                        help='dropout ratio (default: 0.5)')
-    parser.add_argument('--num_layer', type=int, default=5,
+    parser.add_argument('--max_seq_len', type=int, default=None,
+                        help='maximum sequence length to predict (default: 5)')
+    group = parser.add_argument_group('model')
+    group.add_argument('--graph_pooling', type=str, default='mean')
+    group = parser.add_argument_group('gnn')
+    group.add_argument('--gnn_type', type=str, default='gcn')
+    group.add_argument('--gnn_virtual_node', action='store_true')
+    group.add_argument('--gnn_dropout', type=float, default=0.5)
+    group.add_argument('--gnn_num_layer', type=int, default=5,
                         help='number of GNN message passing layers (default: 5)')
-    parser.add_argument('--emb_dim', type=int, default=300,
+    group.add_argument('--gnn_emb_dim', type=int, default=300,
                         help='dimensionality of hidden units in GNNs (default: 300)')
-    parser.add_argument('--batch_size', type=int, default=32,
+    group.add_argument('--gnn_JK', type=str, default='last')
+    group.add_argument('--gnn_residual', action='store_true', default=False)
+
+    group = parser.add_argument_group('training')
+    group.add_argument('--devices', type=int, default=0,
+                        help='which gpu to use if any (default: 0)')
+    group.add_argument('--batch_size', type=int, default=32,
                         help='input batch size for training (default: 32)')
-    parser.add_argument('--epochs', type=int, default=100,
-                        help='number of epochs to train (default: 30)')
-    parser.add_argument('--num_workers', type=int, default=0,
+    group.add_argument('--epochs', type=int, default=100,
+                        help='number of epochs to train (default: 100)')
+    group.add_argument('--num_workers', type=int, default=0,
                         help='number of workers (default: 0)')
-    parser.add_argument('--dataset', type=str, default="ogbg-molhiv",
-                        help='dataset name (default: ogbg-ppa)')
+    group.add_argument('--scheduler', type=bool, default=False)
+    group.add_argument('--weight_decay', type=float, default=0.0)
+    group.add_argument('--lr', type=float, default=0.001)
+    group.add_argument('--runs', type=int, default=10)
+    group.add_argument('--test-freq', type=int, default=1)
+    group.add_argument('--resume', type=str, default=None)
+    group.add_argument('--seed', type=int, default=None)
+
     parser.add_argument('--feature', type=str, default="full",
                     help='full feature or simple feature')
-    parser.add_argument('--scheduler', type=bool, default=False)
-    parser.add_argument('--weight_decay', type=float, default=0.0)
-
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--runs', type=int, default=10)
-    parser.add_argument('--test-freq', type=int, default=1)
-    parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--seed', type=int, default=None)
     # fmt: on
 
     args, _ = parser.parse_known_args()
@@ -107,7 +87,9 @@ def main():
     args = parser.parse_args()
     data_transform = trainer.transform(args)
     
-    run_name = f'{args.dataset}+{args.gnn}+{trainer.name(args)}'
+    run_name = f'{args.dataset}+{args.gnn_type}'
+    run_name += '-virtual' if args.gnn_virtual_node else ''
+    run_name += f'+{trainer.name(args)}'
     if args.scheduler:
         run_name = run_name+f'+scheduler' 
     if args.seed:
@@ -131,19 +113,11 @@ def main():
             cudnn.deterministic = True
             torch.cuda.manual_seed(args.seed)
 
-    ### automatic dataloading and splitting
+    # automatic dataloading and splitting
     dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)
     dataset_eval = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
     task_type = dataset.task_type
-
-    if args.feature == 'full':
-        pass 
-    elif args.feature == 'simple':
-        print('using simple feature')
-        # only retain the top two node/edge features
-        dataset.data.x = dataset.data.x[:,:2]
-        dataset.data.edge_attr = dataset.data.edge_attr[:,:2]
-
+    
     split_idx = dataset.get_idx_split()
 
     ### automatic evaluator. takes dataset name as input
@@ -153,36 +127,13 @@ def main():
     valid_loader = DataLoader(dataset_eval[split_idx["valid"]], batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
     test_loader = DataLoader(dataset_eval[split_idx["test"]], batch_size=args.batch_size, shuffle=False, num_workers=args.num_workers, pin_memory=True)
 
-    # Compute in-degree histogram over training data.
-    deg = torch.zeros(10, dtype=torch.long)
-    num_nodes = 0.0
-    num_graphs = 0
-    for data in dataset_eval[split_idx['train']]:
-        d = degree(data.edge_index[1], num_nodes=data.num_nodes, dtype=torch.long)
-        deg += torch.bincount(d, minlength=deg.numel())
-        num_nodes += data.num_nodes
-        num_graphs +=1
-    args.deg = deg
-    print("Avg num nodes:", num_nodes / num_graphs)
-    print("Avg deg:", deg)
-
-    node_encoder = AtomEncoder(args.emb_dim)
-    edge_encoder_cls = EDGE_ENCODERS[args.dataset]
-
-    def calc_loss(pred, batch, m=1.0):
-        is_labeled = batch.y == batch.y
-        if "classification" in task_type: 
-            loss = cls_criterion(pred.to(torch.float32)[is_labeled], batch.y.to(torch.float32)[is_labeled])
-        else:
-            loss = reg_criterion(pred.to(torch.float32)[is_labeled], batch.y.to(torch.float32)[is_labeled])
-        loss /= m
-        return loss
+    calc_loss = LOSSES[args.dataset](task_type)
+    eval = EVALS[args.dataset]
 
     def run(run_id):
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
-        model = model_cls(num_tasks=dataset.num_tasks, args=args, num_layer=args.num_layer, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls, emb_dim=args.emb_dim,
-                        drop_ratio=args.drop_ratio).to(device)
+        model = model_cls(num_tasks=dataset.num_tasks, args=args, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls).to(device)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler:

@@ -1,6 +1,7 @@
 dataset: ogbg-molhiv
 aug: baseline
-gnn: gin-virtual
+gnn_type: gin
+gnn_virtual_node: true
 runs: 5
 batch_size: 256
 lr: 0.01

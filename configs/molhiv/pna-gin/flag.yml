@@ -1,9 +1,10 @@
 dataset: ogbg-molhiv
 aug: flag
-gnn: pna-gin
+gnn_type: pna
+add_edge: gin
 runs: 5
-emb_dim: 70
+gnn_emb_dim: 70
 scheduler: True
 lr: 0.01
-num_layer: 4
+gnn_num_layer: 4
 epochs: 200

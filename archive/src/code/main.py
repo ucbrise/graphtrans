@@ -4,7 +4,8 @@ import torch.optim as optim
 import torch.nn.functional as F
 from torchvision import transforms
 from torch_geometric.utils import degree
-
+from data.encoders import EDGE_ENCODERS
+from data import LOSSES, EVALS
 import random
 from tqdm import tqdm
 import configargparse
@@ -21,11 +22,9 @@ from utils import ASTNodeEncoder, get_vocab_mapping
 # for data transform
 from utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
 
-import sys
 from trainers import get_trainer_and_parser
 from models import get_model_and_parser
 from torch.optim.lr_scheduler import ReduceLROnPlateau
-from data.encoders import EDGE_ENCODERS
 
 from datetime import datetime
 import wandb
@@ -33,87 +32,53 @@ wandb.init(project='graph-aug')
 now = datetime.now()
 now = now.strftime("%m_%d-%H_%M_%S")
 
-multicls_criterion = torch.nn.CrossEntropyLoss()
-def calc_loss(pred_list, batch, m=1.0):
-    loss = 0
-    for i in range(len(pred_list)):
-        loss += multicls_criterion(pred_list[i].to(torch.float32), batch.y_arr[:, i])
-    loss = loss / len(pred_list)
-    loss /= m
-    return loss
-
-def eval(model, device, loader, evaluator, arr_to_seq):
-    model.eval()
-    seq_ref_list = []
-    seq_pred_list = []
-
-    for step, batch in enumerate(tqdm(loader, desc="Eval")):
-        batch = batch.to(device)
-
-        if batch.x.shape[0] == 1:
-            pass
-        else:
-            with torch.no_grad():
-                pred_list = model(batch)
-
-            mat = []
-            for i in range(len(pred_list)):
-                mat.append(torch.argmax(pred_list[i], dim=1).view(-1, 1))
-            mat = torch.cat(mat, dim=1)
-
-            seq_pred = [arr_to_seq(arr) for arr in mat]
-
-            # PyG >= 1.5.0
-            seq_ref = [batch.y[i] for i in range(len(batch.y))]
-
-            seq_ref_list.extend(seq_ref)
-            seq_pred_list.extend(seq_pred)
-
-    input_dict = {"seq_ref": seq_ref_list, "seq_pred": seq_pred_list}
-
-    return evaluator.eval(input_dict)
-
-
 def main():
     # fmt: off
     parser = configargparse.ArgumentParser(allow_abbrev=False,
                                     description='GNN baselines on ogbg-code data with Pytorch Geometrics')
     parser.add_argument('--configs', required=False, is_config_file=True)
 
+
     parser.add_argument('--data_root', type=str, default='/data/zhwu/ogb')
+    parser.add_argument('--dataset', type=str, default="ogbg-code",
+                        help='dataset name (default: ogbg-code)')
+
     parser.add_argument('--aug', type=str, default='baseline',
                         help='augment method to use [baseline|flag]')
                         
-    parser.add_argument('--devices', type=int, default=0,
-                        help='which gpu to use if any (default: 0)')
-    parser.add_argument('--gnn', type=str, default='gcn-virtual',
-                        help='GNN gin, gin-virtual, or gcn, or gcn-virtual (default: gcn-virtual)')
-    parser.add_argument('--drop_ratio', type=float, default=0,
-                        help='dropout ratio (default: 0)')
     parser.add_argument('--max_seq_len', type=int, default=5,
                         help='maximum sequence length to predict (default: 5)')
     parser.add_argument('--num_vocab', type=int, default=5000,
                         help='the number of vocabulary used for sequence prediction (default: 5000)')
-    parser.add_argument('--num_layer', type=int, default=5,
+    group = parser.add_argument_group('model')
+    group.add_argument('--graph_pooling', type=str, default='mean')
+    group = parser.add_argument_group('gnn')
+    group.add_argument('--gnn_type', type=str, default='gcn')
+    group.add_argument('--gnn_virtual_node', action='store_true')
+    group.add_argument('--gnn_dropout', type=float, default=0)
+    group.add_argument('--gnn_num_layer', type=int, default=5,
                         help='number of GNN message passing layers (default: 5)')
-    parser.add_argument('--emb_dim', type=int, default=300,
+    group.add_argument('--gnn_emb_dim', type=int, default=300,
                         help='dimensionality of hidden units in GNNs (default: 300)')
-    parser.add_argument('--batch_size', type=int, default=128,
-                        help='input batch size for training (default: 128)')
-    parser.add_argument('--epochs', type=int, default=30,
-                        help='number of epochs to train (default: 30)')
-    parser.add_argument('--num_workers', type=int, default=0,
-                        help='number of workers (default: 0)')
-    parser.add_argument('--dataset', type=str, default="ogbg-code",
-                        help='dataset name (default: ogbg-code)')
-    parser.add_argument('--scheduler', type=bool, default=False)
-    parser.add_argument('--weight_decay', type=float, default=0.0)
+    group.add_argument('--gnn_JK', type=str, default='last')
+    group.add_argument('--gnn_residual', action='store_true', default=False)
 
-    parser.add_argument('--lr', type=float, default=0.001)
-    parser.add_argument('--runs', type=int, default=10)
-    parser.add_argument('--test-freq', type=int, default=1)
-    parser.add_argument('--resume', type=str, default=None)
-    parser.add_argument('--seed', type=int, default=None)
+    group = parser.add_argument_group('training')
+    group.add_argument('--devices', type=int, default=0,
+                        help='which gpu to use if any (default: 0)')
+    group.add_argument('--batch_size', type=int, default=128,
+                        help='input batch size for training (default: 128)')
+    group.add_argument('--epochs', type=int, default=30,
+                        help='number of epochs to train (default: 30)')
+    group.add_argument('--num_workers', type=int, default=0,
+                        help='number of workers (default: 0)')
+    group.add_argument('--scheduler', type=bool, default=False)
+    group.add_argument('--weight_decay', type=float, default=0.0)
+    group.add_argument('--lr', type=float, default=0.001)
+    group.add_argument('--runs', type=int, default=10)
+    group.add_argument('--test-freq', type=int, default=1)
+    group.add_argument('--resume', type=str, default=None)
+    group.add_argument('--seed', type=int, default=None)
     # fmt: on
 
     args, _ = parser.parse_known_args()
@@ -122,11 +87,12 @@ def main():
     trainer = get_trainer_and_parser(args, parser)
     train = trainer.train
     model_cls = get_model_and_parser(args, parser)
-
     args = parser.parse_args()
     data_transform = trainer.transform(args)
 
-    run_name = f'{args.dataset}+{args.gnn}+{trainer.name(args)}'
+    run_name = f'{args.dataset}+{args.gnn_type}'
+    run_name += '-virtual' if args.gnn_virtual_node else ''
+    run_name += f'+{trainer.name(args)}'
     if args.scheduler:
         run_name = run_name+f'+scheduler'
     if args.seed:
@@ -135,7 +101,6 @@ def main():
     wandb.run.save()
 
     device = torch.device("cuda") if torch.cuda.is_available() and args.devices >= 0 else torch.device("cpu")
-    
     args.save_path = f'exps/{run_name}-{now}'
     os.makedirs(args.save_path, exist_ok=True)
     if args.resume is not None:
@@ -187,12 +152,12 @@ def main():
     nodetypes_mapping = pd.read_csv(os.path.join(dataset.root, 'mapping', 'typeidx2type.csv.gz'))
     nodeattributes_mapping = pd.read_csv(os.path.join(dataset.root, 'mapping', 'attridx2attr.csv.gz'))
 
-    # Encoding node features into emb_dim vectors.
+    # Encoding node features into gnn_emb_dim vectors.
     # The following three node features are used.
     # 1. node type
     # 2. node attribute
     # 3. node depth
-    node_encoder = ASTNodeEncoder(args.emb_dim, num_nodetypes=len(
+    node_encoder = ASTNodeEncoder(args.gnn_emb_dim, num_nodetypes=len(
         nodetypes_mapping['type']), num_nodeattributes=len(nodeattributes_mapping['attr']), max_depth=20)
     edge_encoder_cls = EDGE_ENCODERS[args.dataset]
 
@@ -210,11 +175,13 @@ def main():
         print("Avg num nodes:", num_nodes / num_graphs)
         print("Avg deg:", deg)
 
+    calc_loss = LOSSES[args.dataset](task_type)
+    eval = EVALS[args.dataset]
+
     def run(run_id):
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
-        model = model_cls(num_tasks=len(vocab2idx), args=args, num_layer=args.num_layer, max_seq_len=args.max_seq_len, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls, 
-                        emb_dim=args.emb_dim, drop_ratio=args.drop_ratio).to(device)
+        model = model_cls(num_tasks=len(vocab2idx), args=args, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls).to(device)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler:
@@ -291,7 +258,7 @@ def main():
         best_val, final_test = run(run_id)
         vals.append(best_val)
         tests.append(final_test)
-        print(f'Run {run} - val: {best_val}, test: {final_test}')
+        print(f'Run {run_id} - val: {best_val}, test: {final_test}')
     print(f"Average val accuracy: {np.mean(vals)} ± {np.std(vals)}")
     print(f"Average test accuracy: {np.mean(tests)} ± {np.std(tests)}")
 

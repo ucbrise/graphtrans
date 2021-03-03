@@ -1,9 +1,10 @@
 dataset: ogbg-code
 aug: baseline
-gnn: pna-gincat
+gnn_type: pna
+add_edge: gincat
 runs: 5
-emb_dim: 70
+gnn_emb_dim: 70
 scheduler: True
 lr: 0.01
-num_layer: 5
+gnn_num_layer: 5
 epochs: 60

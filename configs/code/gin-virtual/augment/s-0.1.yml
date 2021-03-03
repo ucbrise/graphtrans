@@ -1,5 +1,6 @@
 aug: baseline
-gnn: gin-virtual
+gnn_type: gin
+gnn_virtual_node: true
 aug: augment
 aug_list: [subgraph]
 runs: 1

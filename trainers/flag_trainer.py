@@ -27,7 +27,7 @@ class FlagTrainer(BaseTrainer):
                 optimizer.zero_grad()
 
                 perturb = torch.FloatTensor(
-                    batch.x.shape[0], args.emb_dim).uniform_(-args.step_size, args.step_size).to(device)
+                    batch.x.shape[0], args.gnn_emb_dim).uniform_(-args.step_size, args.step_size).to(device)
                 perturb.requires_grad_()
 
                 pred_list = model(batch, perturb)

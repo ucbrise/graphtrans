@@ -1,5 +1,6 @@
 dataset: ogbg-molhiv
 aug: flag
-gnn: gin-virtual
+gnn_type: gin
+gnn_virtual_node: true
 runs: 5
 step-size: 1e-3
