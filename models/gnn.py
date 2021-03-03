@@ -2,14 +2,13 @@ import torch
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
 import torch.nn.functional as F
 from modules.gnn_module import GNNNodeEmbedding
+from .base_model import BaseModel
 
-class GNN(torch.nn.Module):
+class GNN(BaseModel):
     @staticmethod
     def add_args(parser):
         return
-    @staticmethod
-    def need_deg():
-        return False
+
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         """
             num_tasks (int): number of labels to be predicted

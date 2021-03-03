@@ -5,9 +5,10 @@ from torch_geometric.nn import BatchNorm
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
 from ogb.graphproppred.mol_encoder import AtomEncoder
 import torch.nn.functional as F
+from .base_model import BaseModel
 
 
-class PNANet(nn.Module):
+class PNANet(BaseModel):
     @staticmethod
     def need_deg():
         return True
