@@ -24,6 +24,12 @@ class PNANet(BaseModel):
         group.set_defaults(gnn_dropout=0.3)
         group.set_defaults(gnn_emb_dim=70)
         group.set_defaults(gnn_num_layer=4)
+    
+    @staticmethod
+    def name(args):
+        name = f'{args.model_type}+{args.gnn_type}'
+        name += '-virtual' if args.gnn_virtual_node else ''
+        return name
         
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         super().__init__()

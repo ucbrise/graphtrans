@@ -9,6 +9,12 @@ class GNN(BaseModel):
     def add_args(parser):
         return
 
+    @staticmethod
+    def name(args):
+        name = f'{args.model_type}+{args.gnn_type}'
+        name += '-virtual' if args.gnn_virtual_node else ''
+        return name
+
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         """
             num_tasks (int): number of labels to be predicted

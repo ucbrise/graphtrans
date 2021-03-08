@@ -88,8 +88,7 @@ def main():
     args = parser.parse_args()
     data_transform = trainer.transform(args)
 
-    run_name = f'{args.dataset}+{args.model_type}+{args.gnn_type}'
-    run_name += '-virtual' if args.gnn_virtual_node else ''
+    run_name = f'{args.dataset}+{model_cls.name(args)}'
     run_name += f'+{trainer.name(args)}'
     if args.scheduler:
         run_name = run_name+f'+scheduler'

@@ -10,6 +10,10 @@ class BaseModel(nn.Module):
     def add_args(parser):
         return
 
+    @staticmethod
+    def name(args):
+        raise NotImplementedError
+
     def __init__(self):
         super().__init__()
 

@@ -26,6 +26,10 @@ class TransformerNodeEncoder(nn.Module):
         self.transformer = nn.TransformerEncoder(encoder_layer, args.num_encoder_layers, encoder_norm)
         self.max_input_len = args.max_input_len
 
+        self.cls_embedding = None
+        if args.graph_pooling == 'cls':
+            self.cls_embedding = nn.Parameter(torch.randn([1, 1, args.d_model], requires_grad=True))
+
     def forward(self, h_node, batch):
         """
             batch: (B * n_b): [0, 0, 1, 1, 1, 2]
@@ -34,6 +38,13 @@ class TransformerNodeEncoder(nn.Module):
 
         padded_h_node, src_padding_mask = _pad_batch(h_node, batch, self.max_input_len) # Pad in the front
         # (S, B, h_d), (B, S)
+
+        if self.cls_embedding is not None:
+            expand_cls_embedding = self.cls_embedding.expand(1, padded_h_node.size(1), -1)
+            padded_h_node = torch.cat([padded_h_node, expand_cls_embedding], dim=0)
+
+            zeros = src_padding_mask.data.new(src_padding_mask.size(0), 1).fill_(0)
+            src_padding_mask = torch.cat([src_padding_mask, zeros], dim=1)
 
         transformer_out = self.transformer(padded_h_node, src_key_padding_mask=src_padding_mask) # (S, B, h_d)
 
@@ -57,7 +68,7 @@ def _pad_batch(h_node, batch, max_input_len):
         num_node = num_nodes[i]
         if num_node > max_num_nodes:
             num_node = max_num_nodes
-        padded_h_node[-num_node:, i] = h_node[mask][:num_node]
+        padded_h_node[-num_node:, i] = h_node[mask][-num_node:]
         src_padding_mask[i, :-num_node] = True # [b, s]
-
+        
     return padded_h_node, src_padding_mask
