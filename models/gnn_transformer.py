@@ -37,10 +37,12 @@ class GNNTransformer(BaseModel):
     def forward(self, batched_data, perturb=None):
         h_node = self.gnn(batched_data, perturb)
         h_node = self.gnn2transformer(h_node)
-        transforemr_out = self.transformer_encoder(h_node, batched_data.batch)
+        transforemr_out, mask = self.transformer_encoder(h_node, batched_data.batch) # [s, b, h], [b, s]
 
         if self.pooling == 'last':
             h_graph = transforemr_out[-1]
+        elif self.pooling == 'mean':
+            h_graph = transforemr_out.sum(0) / mask.sum(-1, keepdim=True)
         else:
             raise NotImplementedError
 

@@ -37,7 +37,7 @@ class TransformerNodeEncoder(nn.Module):
 
         transformer_out = self.transformer(padded_h_node, src_key_padding_mask=src_padding_mask) # (S, B, h_d)
 
-        return transformer_out
+        return transformer_out, src_padding_mask
 
 def _pad_batch(h_node, batch, max_input_len):
     num_batch = batch[-1] + 1
@@ -58,6 +58,6 @@ def _pad_batch(h_node, batch, max_input_len):
         if num_node > max_num_nodes:
             num_node = max_num_nodes
         padded_h_node[-num_node:, i] = h_node[mask][:num_node]
-        src_padding_mask[i, :-num_node] = True
+        src_padding_mask[i, :-num_node] = True # [b, s]
 
     return padded_h_node, src_padding_mask

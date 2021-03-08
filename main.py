@@ -69,6 +69,7 @@ def main():
     group.add_argument('--lr', type=float, default=0.001)
     group.add_argument('--runs', type=int, default=10)
     group.add_argument('--test-freq', type=int, default=1)
+    group.add_argument('--start-eval', type=int, default=15)
     group.add_argument('--resume', type=str, default=None)
     group.add_argument('--seed', type=int, default=None)
     # fmt: on
@@ -165,16 +166,19 @@ def main():
                 valid_perf = eval(model, device, valid_loader, evaluator)
                 valid_metric = valid_perf[dataset.eval_metric]
                 scheduler.step(valid_metric)
-            if epoch > args.epochs // 2 and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
+            if epoch > args.start_eval and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
                 print('Evaluating...')
                 train_perf = eval(model, device, train_loader, evaluator)
-                valid_perf = eval(model, device, valid_loader, evaluator)
+                if not args.scheduler:
+                    valid_perf = eval(model, device, valid_loader, evaluator)
                 test_perf = eval(model, device, test_loader, evaluator)
 
                 # print({'Train': train_perf, 'Validation': valid_perf, 'Test': test_perf})
 
                 train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
-                wandb.log({f'train/{dataset.eval_metric}-runs{run_id}': train_metric,
+                wandb.log({
+                        f'train/loss-runs{run_id}': loss,
+                        f'train/{dataset.eval_metric}-runs{run_id}': train_metric,
                         f'valid/{dataset.eval_metric}-runs{run_id}': valid_metric,
                         f'test/{dataset.eval_metric}-runs{run_id}': test_metric,
                         'epoch': epoch})

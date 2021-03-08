@@ -10,8 +10,7 @@
 # echo CUDA_VISIBLE_DEVICES $CUDA_VISIBLE_DEVICES
 # AVAILABLE_GPU=$((`gpustat | awk '{print $NF}' | grep -n "|" | cut -d : -f 1` - 2))
 # CUDA_VISIBLE_DEVICES=$AVAILABLE_GPU
-script=$1
-config=$2
+config=$1
 
 echo $(scontrol show hostnames $SLURM_JOB_NODELIST)
 source ~/.bashrc
