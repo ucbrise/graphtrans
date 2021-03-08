@@ -28,8 +28,11 @@ class GNNTransformer(BaseModel):
 
         self.max_seq_len = args.max_seq_len
         output_dim = args.d_model
-        for i in range(args.max_seq_len):
-            self.graph_pred_linear_list.append(torch.nn.Linear(output_dim, self.num_tasks))
+        if args.max_seq_len is None:
+            self.graph_pred_linear = torch.nn.Linear(output_dim, self.num_tasks)
+        else:
+            for i in range(args.max_seq_len):
+                self.graph_pred_linear_list.append(torch.nn.Linear(output_dim, self.num_tasks))
 
     def forward(self, batched_data, perturb=None):
         h_node = self.gnn(batched_data, perturb)

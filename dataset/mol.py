@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from tqdm import tqdm
+
 from torch_geometric.utils import degree
 from ogb.graphproppred.mol_encoder import BondEncoder
 from ogb.graphproppred.mol_encoder import AtomEncoder
@@ -35,7 +37,7 @@ class MolUtil:
         y_true = []
         y_pred = []
 
-        for step, batch in enumerate(loader):
+        for step, batch in enumerate(tqdm(loader, desc="Eval")):
             batch = batch.to(device)
 
             if batch.x.shape[0] == 1:
