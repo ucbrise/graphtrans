@@ -66,6 +66,7 @@ def main():
                         help='number of workers (default: 0)')
     group.add_argument('--scheduler', type=bool, default=False)
     group.add_argument('--weight_decay', type=float, default=0.0)
+    group.add_argument('--grad_clip', type=float, default=None)
     group.add_argument('--lr', type=float, default=0.001)
     group.add_argument('--runs', type=int, default=10)
     group.add_argument('--test-freq', type=int, default=1)
@@ -203,10 +204,8 @@ def main():
         state_dict = torch.load(os.path.join(args.save_path, str(run_id), 'best_model.pt'))
         print("[Evaluate] Loaded from", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
         model.load_state_dict(state_dict['model'])
-        best_valid_perf = eval(model, device, valid_loader, evaluator,
-                                arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
-        best_test_perf = eval(model, device, test_loader, evaluator,
-                              arr_to_seq=lambda arr: decode_arr_to_seq(arr, idx2vocab))
+        best_valid_perf = eval(model, device, valid_loader, evaluator)
+        best_test_perf = eval(model, device, test_loader, evaluator)
         return best_valid_perf[dataset.eval_metric], best_test_perf[dataset.eval_metric]
 
     vals, tests = [], []
