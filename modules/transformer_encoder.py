@@ -16,6 +16,7 @@ class TransformerNodeEncoder(nn.Module):
         group.add_argument('--transformer_activation', type=str, default='relu')
         group.add_argument('--num_encoder_layers', type=int, default=4)
         group.add_argument('--max_input_len', default=1000, help='The max input length of transformer input')
+        group.add_argument('--transformer_norm_input', action='store_true', default=False)
 
     def __init__(self, args):
         super().__init__()
@@ -26,6 +27,9 @@ class TransformerNodeEncoder(nn.Module):
         self.transformer = nn.TransformerEncoder(encoder_layer, args.num_encoder_layers, encoder_norm)
         self.max_input_len = args.max_input_len
 
+        self.norm_input = None
+        if args.transformer_norm_input:
+            self.norm_input = nn.LayerNorm(args.d_model)
         self.cls_embedding = None
         if args.graph_pooling == 'cls':
             self.cls_embedding = nn.Parameter(torch.randn([1, 1, args.d_model], requires_grad=True))
@@ -45,6 +49,8 @@ class TransformerNodeEncoder(nn.Module):
 
             zeros = src_padding_mask.data.new(src_padding_mask.size(0), 1).fill_(0)
             src_padding_mask = torch.cat([src_padding_mask, zeros], dim=1)
+        if self.norm_input is not None:
+            padded_h_node = self.norm_input(padded_h_node)
 
         transformer_out = self.transformer(padded_h_node, src_key_padding_mask=src_padding_mask) # (S, B, h_d)
 
@@ -57,7 +63,8 @@ def _pad_batch(h_node, batch, max_input_len):
     for i in range(num_batch):
         mask = batch.eq(i)
         masks.append(mask)
-        num_nodes.append(mask.sum())
+        num_node = mask.sum()
+        num_nodes.append(num_node)
 
     # print(max(num_nodes))
     max_num_nodes = min(max(num_nodes), max_input_len)
@@ -69,6 +76,6 @@ def _pad_batch(h_node, batch, max_input_len):
         if num_node > max_num_nodes:
             num_node = max_num_nodes
         padded_h_node[-num_node:, i] = h_node[mask][-num_node:]
-        src_padding_mask[i, :-num_node] = True # [b, s]
+        src_padding_mask[i, :max_num_nodes - num_node] = True # [b, s]
         
     return padded_h_node, src_padding_mask

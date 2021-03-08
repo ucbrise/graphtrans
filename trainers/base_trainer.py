@@ -13,7 +13,6 @@ class BaseTrainer:
     @staticmethod
     def train(model, device, loader, optimizer, args, calc_loss):
         model.train()
-        # metrics = {}
 
         loss_accum = 0
         for step, batch in enumerate(tqdm(loader, desc="Train")):
@@ -22,10 +21,9 @@ class BaseTrainer:
             if batch.x.shape[0] == 1 or batch.batch[-1] == 0:
                 pass
             else:
-                # with torch.autograd.detect_anomaly():
-                pred_list = model(batch)
                 optimizer.zero_grad()
-
+                pred_list = model(batch)
+                
                 loss = calc_loss(pred_list, batch)
 
                 loss.backward()

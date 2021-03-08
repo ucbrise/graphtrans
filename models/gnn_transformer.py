@@ -14,7 +14,9 @@ class GNNTransformer(BaseModel):
     
     @staticmethod
     def name(args):
-        name = f'{args.model_type}+pooling={args.graph_pooling}+{args.gnn_type}'
+        name = f'{args.model_type}-pooling={args.graph_pooling}'
+        name += '-norm_input' if args.transformer_norm_input else ''
+        name += f'+{args.gnn_type}'
         name += '-virtual' if args.gnn_virtual_node else ''
         return name
 
@@ -44,19 +46,18 @@ class GNNTransformer(BaseModel):
     def forward(self, batched_data, perturb=None):
         h_node = self.gnn(batched_data, perturb)
         h_node = self.gnn2transformer(h_node) # [s, b, d_model]
-        transforemr_out, mask = self.transformer_encoder(h_node, batched_data.batch) # [s, b, h], [b, s]
+        transformer_out, mask = self.transformer_encoder(h_node, batched_data.batch) # [s, b, h], [b, s]
 
         if self.pooling in ['last', 'cls']:
-            h_graph = transforemr_out[-1]
+            h_graph = transformer_out[-1]
         elif self.pooling == 'mean':
-            raise NotImplementedError
-            out_mask = transforemr_out.masked_fill(mask.transpose(0, 1).unsqueeze(-1), 0)
-            h_graph = out_mask.sum(0) / mask.float().sum(-1, keepdim=True)
+            h_graph = transformer_out.sum(0) / (~mask).sum(-1, keepdim=True)
         else:
             raise NotImplementedError
 
         if self.max_seq_len is None:
-            return self.graph_pred_linear(h_graph)
+            out = self.graph_pred_linear(h_graph)
+            return out
         pred_list = []
         for i in range(self.max_seq_len):
             pred_list.append(self.graph_pred_linear_list[i](h_graph))
