@@ -1,0 +1,10 @@
+aug: baseline
+model_type: gnn
+gnn_type: gcn
+gnn_virtual_node: true
+aug: augment
+aug_list: [mask_nodes]
+runs: 1
+seed: 12344
+
+aug_ratio: 0.02

@@ -1,0 +1,10 @@
+aug: baseline
+model_type: gnn
+gnn_type: gin
+gnn_virtual_node: true
+aug: augment
+aug_list: [dnodes]
+runs: 1
+seed: 12344
+
+aug_ratio: 0.5

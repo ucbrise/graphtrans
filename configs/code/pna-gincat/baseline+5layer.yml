@@ -1,0 +1,10 @@
+dataset: ogbg-code
+aug: baseline
+model_type: pna
+add_edge: gincat
+runs: 5
+gnn_emb_dim: 70
+scheduler: plateau
+lr: 0.01
+gnn_num_layer: 5
+epochs: 60

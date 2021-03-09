@@ -1,0 +1,13 @@
+dataset: ogbg-molhiv
+aug: augment
+aug_list: [pedges]
+model_type: pna
+runs: 5
+gnn_emb_dim: 70
+scheduler: plateau
+lr: 0.01
+gnn_num_layer: 4
+epochs: 200
+batch_size: 128
+weight_decay: 3e-6
+gnn_dropout: 0.3

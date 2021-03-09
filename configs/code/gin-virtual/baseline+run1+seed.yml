@@ -1,0 +1,6 @@
+aug: baseline
+model_type: gnn
+gnn_type: gin
+gnn_virtual_node: true
+runs: 1
+seed: 12344
