@@ -3,7 +3,7 @@ aug: flag
 model_type: pna
 runs: 5
 gnn_emb_dim: 70
-scheduler: plateau True
+scheduler: plateau
 lr: 0.01
 gnn_num_layer: 4
 epochs: 200
