@@ -197,6 +197,6 @@ class GNN_node_Virtualnode(torch.nn.Module):
 
 def GNNNodeEmbedding(virtual_node, *args, **kwargs):
     if virtual_node:
-        return GNN_node(*args, **kwargs)
-    else:
         return GNN_node_Virtualnode(*args, **kwargs)
+    else:
+        return GNN_node(*args, **kwargs)
