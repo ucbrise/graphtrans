@@ -8,4 +8,4 @@ runs: 5
 aug_ratio: 0.05
 batch_size: 256
 lr: 0.01
-scheduler: True
+scheduler: plateau True

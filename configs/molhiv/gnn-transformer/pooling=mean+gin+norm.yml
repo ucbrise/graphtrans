@@ -10,6 +10,6 @@ batch_size: 256
 lr: 0.0001
 # grad_clip: 1
 start-eval: 1
-scheduler: True
+scheduler: plateau True
 
 transformer_norm_input: true

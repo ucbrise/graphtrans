@@ -64,7 +64,7 @@ def main():
                         help='number of epochs to train (default: 30)')
     group.add_argument('--num_workers', type=int, default=0,
                         help='number of workers (default: 0)')
-    group.add_argument('--scheduler', type=bool, default=False)
+    group.add_argument('--scheduler', type=str, default=None)
     group.add_argument('--weight_decay', type=float, default=0.0)
     group.add_argument('--grad_clip', type=float, default=None)
     group.add_argument('--lr', type=float, default=0.001)
@@ -90,8 +90,8 @@ def main():
 
     run_name = f'{args.dataset}+{model_cls.name(args)}'
     run_name += f'+{trainer.name(args)}'
-    if args.scheduler:
-        run_name = run_name+f'+scheduler'
+    if args.scheduler is not None:
+        run_name = run_name+f'+sch={args.scheduler}'
     if args.seed:
         run_name = run_name + f'+seed{args.seed}'
     wandb.run.name = run_name
@@ -142,8 +142,12 @@ def main():
         wandb.watch(model)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-        if args.scheduler:
+        if args.scheduler == 'plateau':
             scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
+        elif args.scheduler is None:
+            pass
+        else:
+            raise NotImplementedError
 
         # Load resume model, if any
         start_epoch = 1

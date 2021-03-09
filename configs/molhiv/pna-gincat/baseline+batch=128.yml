@@ -4,7 +4,7 @@ model_type: pna
 add_edge: gincat
 runs: 5
 gnn_emb_dim: 70
-scheduler: True
+scheduler: plateau True
 lr: 0.01
 gnn_num_layer: 4
 epochs: 200
