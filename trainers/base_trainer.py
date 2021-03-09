@@ -1,5 +1,6 @@
 from tqdm import tqdm
 import torch
+import wandb
 
 class BaseTrainer:
     @staticmethod
@@ -30,8 +31,10 @@ class BaseTrainer:
                 if args.grad_clip is not None:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
                 optimizer.step()
-
-                loss_accum += loss.item()
+                
+                detached_loss = loss.item()
+                wandb.log({'train/iter-loss': detached_loss}, commit=False)
+                loss_accum += detached_loss
 
         print('Average training loss: {}'.format(loss_accum / (step + 1)))
         return loss_accum / (step + 1)

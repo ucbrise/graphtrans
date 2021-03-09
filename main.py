@@ -139,6 +139,7 @@ def main():
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
         model = model_cls(num_tasks=num_tasks, args=args, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls).to(device)
+        wandb.watch(model)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler:
@@ -161,6 +162,11 @@ def main():
             print("=====Epoch {}=====".format(epoch))
             print('Training...')
             loss = train(model, device, train_loader, optimizer, args, calc_loss)
+            wandb.log({
+                f'train/loss-runs{run_id}': loss,
+                f'train/lr': optimizer.param_groups[0]['lr'],
+                f'epoch': epoch
+            })
 
             if args.scheduler:
                 valid_perf = eval(model, device, valid_loader, evaluator)
@@ -177,7 +183,6 @@ def main():
 
                 train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
                 wandb.log({
-                        f'train/loss-runs{run_id}': loss,
                         f'train/{dataset.eval_metric}-runs{run_id}': train_metric,
                         f'valid/{dataset.eval_metric}-runs{run_id}': valid_metric,
                         f'test/{dataset.eval_metric}-runs{run_id}': test_metric,

@@ -7,6 +7,6 @@ graph_pooling: last
 runs: 5
 seed: 12344
 batch_size: 256
-lr: 0.001
+lr: 0.003
 start-eval: 1
 scheduler: True
