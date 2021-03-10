@@ -214,6 +214,8 @@ def main():
                 if best_val < valid_metric:
                     best_val = valid_metric
                     final_test = test_metric
+                    wandb.run.summary[f"best/valid/{dataset.eval_metric}-runs{run_id}"] = valid_metric
+                    wandb.run.summary[f"best/test/{dataset.eval_metric}-runs{run_id}"] = test_metric
                     torch.save(state_dict, os.path.join(args.save_path, str(run_id), 'best_model.pt'))
                     print("[Best Model] Save model:", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
                     
