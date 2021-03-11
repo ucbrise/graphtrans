@@ -21,6 +21,7 @@ class GNNTransformer(BaseModel):
         name += '-norm_input' if args.transformer_norm_input else ''
         name += f'+{args.gnn_type}'
         name += '-virtual' if args.gnn_virtual_node else ''
+        name += f'-JK={args.gnn_JK}'
         name += '-pretrained_gnn' if args.pretrained_gnn else ''
         name += f'-freeze_gnn={args.freeze_gnn}' if args.freeze_gnn is not None else ''
         return name
@@ -39,7 +40,8 @@ class GNNTransformer(BaseModel):
             self.gnn_node.load_state_dict(state_dict)
         self.freeze_gnn = args.freeze_gnn
 
-        self.gnn2transformer = nn.Linear(args.gnn_emb_dim, args.d_model)
+        gnn_emb_dim = 2 * args.gnn_emb_dim if args.gnn_JK == 'cat' else args.gnn_emb_dim
+        self.gnn2transformer = nn.Linear(gnn_emb_dim, args.d_model)
         self.transformer_encoder = TransformerNodeEncoder(args)
 
         self.num_tasks = num_tasks

@@ -191,6 +191,8 @@ class GNN_node_Virtualnode(torch.nn.Module):
             node_representation = 0
             for layer in range(self.num_layer):
                 node_representation += h_list[layer]
+        elif self.JK == "cat":
+            node_representation = torch.cat([h_list[0], h_list[-1]], dim=-1)
 
         return node_representation
 
