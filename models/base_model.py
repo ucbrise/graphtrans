@@ -19,3 +19,6 @@ class BaseModel(nn.Module):
 
     def forward(self, batched_data, perturb=None):
         raise NotImplementedError
+    
+    def epoch_callback(self, epoch):
+        return

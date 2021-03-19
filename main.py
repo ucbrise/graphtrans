@@ -17,6 +17,7 @@ from trainers import get_trainer_and_parser
 from models import get_model_and_parser
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from dataset import DATASET_UTILS
+import utils
 
 from datetime import datetime
 import wandb
@@ -139,6 +140,7 @@ def main():
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
         model = model_cls(num_tasks=num_tasks, args=args, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls).to(device)
+        
         wandb.watch(model)
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -161,25 +163,31 @@ def main():
                 scheduler.load_state_dict(state_dict['scheduler'])
             print("[Resume] Loaded:", last_model_path, "epoch:", start_epoch)
 
-
+        model.epoch_callback(epoch=start_epoch - 1)
         for epoch in range(start_epoch, args.epochs + 1):
             print("=====Epoch {}=====".format(epoch))
             print('Training...')
+            print("Total parameters:", utils.num_total_parameters(model))
+            print("Trainable parameters:", utils.num_trainable_parameters(model))
             loss = train(model, device, train_loader, optimizer, args, calc_loss)
+
+            model.epoch_callback(epoch)
             wandb.log({
                 f'train/loss-runs{run_id}': loss,
                 f'train/lr': optimizer.param_groups[0]['lr'],
                 f'epoch': epoch
             })
 
-            if args.scheduler:
+            if args.scheduler == 'plateau':
                 valid_perf = eval(model, device, valid_loader, evaluator)
                 valid_metric = valid_perf[dataset.eval_metric]
                 scheduler.step(valid_metric)
+            elif args.scheduler is not None:
+                scheduler.step()
             if epoch > args.start_eval and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
                 print('Evaluating...')
                 train_perf = eval(model, device, train_loader, evaluator)
-                if not args.scheduler:
+                if args.scheduler !=  'plateau':
                     valid_perf = eval(model, device, valid_loader, evaluator)
                 test_perf = eval(model, device, test_loader, evaluator)
 
@@ -206,6 +214,8 @@ def main():
                 if best_val < valid_metric:
                     best_val = valid_metric
                     final_test = test_metric
+                    wandb.run.summary[f"best/valid/{dataset.eval_metric}-runs{run_id}"] = valid_metric
+                    wandb.run.summary[f"best/test/{dataset.eval_metric}-runs{run_id}"] = test_metric
                     torch.save(state_dict, os.path.join(args.save_path, str(run_id), 'best_model.pt'))
                     print("[Best Model] Save model:", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
                     

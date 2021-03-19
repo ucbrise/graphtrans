@@ -1,0 +1,16 @@
+pretrained_gnn: exps/ogbg-molhiv+gnn+gin+baseline+sch=plateau-03_09-18_20_56/3/best_model.pt
+
+dataset: ogbg-molhiv
+aug: baseline
+model_type: gnn-transformer
+gnn_type: gin
+gnn_virtual_node: false
+graph_pooling: cls
+runs: 5
+seed: 12344
+batch_size: 256
+lr: 0.0001
+start-eval: 1
+scheduler: plateau
+
+transformer_norm_input: true

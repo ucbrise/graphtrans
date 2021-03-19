@@ -2,11 +2,11 @@
 
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH --nodelist=atlas
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
-#SBATCH --exclude=freddie
+#SBATCH --exclude=freddie,blaze
 
+### SBATCH --nodelist=atlas
 # echo CUDA_VISIBLE_DEVICES $CUDA_VISIBLE_DEVICES
 # AVAILABLE_GPU=$((`gpustat | awk '{print $NF}' | grep -n "|" | cut -d : -f 1` - 2))
 # CUDA_VISIBLE_DEVICES=$AVAILABLE_GPU
