@@ -4,6 +4,7 @@ import torch.nn.functional as F
 import numpy as np
 
 import models.gnn as gnn
+from modules.utils import pad_batch
 
 class TransformerNodeEncoder(nn.Module):
     @staticmethod
@@ -21,6 +22,8 @@ class TransformerNodeEncoder(nn.Module):
     def __init__(self, args):
         super().__init__()
         
+        self.d_model = args.d_model
+        self.num_layer = args.num_encoder_layers
         # Creating Transformer Encoder Model
         encoder_layer = nn.TransformerEncoderLayer(args.d_model, args.nhead, args.dim_feedforward, args.transformer_dropout, args.transformer_activation)
         encoder_norm = nn.LayerNorm(args.d_model)
@@ -40,7 +43,7 @@ class TransformerNodeEncoder(nn.Module):
             h_node: (B * n_b) x h_d
         """
 
-        padded_h_node, src_padding_mask = _pad_batch(h_node, batch, self.max_input_len) # Pad in the front
+        padded_h_node, src_padding_mask = pad_batch(h_node, batch, self.max_input_len) # Pad in the front
         # (S, B, h_d), (B, S)
 
         if self.cls_embedding is not None:
@@ -56,26 +59,3 @@ class TransformerNodeEncoder(nn.Module):
 
         return transformer_out, src_padding_mask
 
-def _pad_batch(h_node, batch, max_input_len):
-    num_batch = batch[-1] + 1
-    num_nodes = []
-    masks = []
-    for i in range(num_batch):
-        mask = batch.eq(i)
-        masks.append(mask)
-        num_node = mask.sum()
-        num_nodes.append(num_node)
-
-    # print(max(num_nodes))
-    max_num_nodes = min(max(num_nodes), max_input_len)
-    padded_h_node = h_node.data.new(max_num_nodes, num_batch, h_node.size(-1)).fill_(0)
-    src_padding_mask = h_node.data.new(num_batch, max_num_nodes).fill_(0).bool()
-
-    for i, mask in enumerate(masks):
-        num_node = num_nodes[i]
-        if num_node > max_num_nodes:
-            num_node = max_num_nodes
-        padded_h_node[-num_node:, i] = h_node[mask][-num_node:]
-        src_padding_mask[i, :max_num_nodes - num_node] = True # [b, s]
-        
-    return padded_h_node, src_padding_mask

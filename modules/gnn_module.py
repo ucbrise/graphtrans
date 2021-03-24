@@ -4,6 +4,7 @@ from torch_geometric.nn import MessagePassing
 from torch_geometric.nn.inits import uniform
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
 from modules.conv import GINConv, GCNConv
+from modules.utils import pad_batch
 
 ### GNN to generate nodse embedding
 class GNN_node(torch.nn.Module):

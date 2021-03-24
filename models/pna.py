@@ -10,6 +10,9 @@ from .base_model import BaseModel
 
 class PNANet(BaseModel):
     @staticmethod
+    def get_emb_dim(args):
+        return args.gnn_emb_dim
+    @staticmethod
     def need_deg():
         return True
         

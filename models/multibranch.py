@@ -1,45 +1,46 @@
-import torch
-from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
-import torch.nn.functional as F
-from modules.gnn_module import GNNNodeEmbedding
 from .base_model import BaseModel
+from modules.multibranch_module import MultiBranchNode
+from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
+from modules.gnn_module import GNNNodeEmbedding
+from modules.transformer_encoder import TransformerNodeEncoder
 
-class GNN(BaseModel):
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+import numpy as np
+
+class MultiBranch(BaseModel):
     @staticmethod
     def get_emb_dim(args):
-        return args.gnn_emb_dim
-
+        return args.gnn_emb_dim + args.d_model
+    
     @staticmethod
     def add_args(parser):
-        return
-
+        TransformerNodeEncoder.add_args(parser)
+        MultiBranchNode.add_args(parser)
     @staticmethod
     def name(args):
-        name = f'{args.model_type}+{args.gnn_type}'
+        name = f'{args.model_type}-pooling={args.graph_pooling}'
+        name += f'+{args.gnn_type}'
         name += '-virtual' if args.gnn_virtual_node else ''
+        name += f'-d={args.d_model}'
         return name
 
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
-        """
-            num_tasks (int): number of labels to be predicted
-            virtual_node (bool): whether to add virtual node or not
-        """
+        super().__init__()
+        gnn_node = GNNNodeEmbedding(args.gnn_virtual_node, args.gnn_num_layer,
+                args.gnn_emb_dim, node_encoder, edge_encoder_cls, 
+                JK=args.gnn_JK, drop_ratio=args.gnn_dropout, 
+                residual=args.gnn_residual, gnn_type=args.gnn_type)
+        transformer_encoder = TransformerNodeEncoder(args)
 
-        super(GNN, self).__init__()
+        self.multibranch = MultiBranchNode(gnn_node, transformer_encoder, args)
 
-        self.num_layer = args.gnn_num_layer
-        self.drop_ratio = args.gnn_dropout
-        self.JK = args.gnn_JK
-        self.emb_dim = args.gnn_emb_dim
+        self.emb_dim = self.multibranch.emb_dim
         self.num_tasks = num_tasks
         self.max_seq_len = args.max_seq_len
         self.graph_pooling = args.graph_pooling
-
-        if self.num_layer < 2:
-            raise ValueError("Number of GNN layers must be greater than 1.")
-
-        ### GNN to generate node embeddings
-        self.gnn_node = GNNNodeEmbedding(args.gnn_virtual_node, self.num_layer, self.emb_dim, node_encoder, edge_encoder_cls, JK = self.JK, drop_ratio = self.drop_ratio, residual = args.gnn_residual, gnn_type = args.gnn_type)
 
         ### Pooling function to generate whole-graph embeddings
         if self.graph_pooling == "sum":
@@ -69,15 +70,8 @@ class GNN(BaseModel):
                 for i in range(self.max_seq_len):
                     self.graph_pred_linear_list.append(torch.nn.Linear(self.emb_dim, self.num_tasks))
 
-
     def forward(self, batched_data, perturb=None):
-        """
-            Return:
-                A (list of) predictions.
-                i-th element represents prediction at i-th position of the sequence.
-        """
-
-        h_node = self.gnn_node(batched_data, perturb)
+        h_node = self.multibranch(batched_data, perturb)
 
         h_graph = self.pool(h_node, batched_data.batch)
 
@@ -88,10 +82,3 @@ class GNN(BaseModel):
             pred_list.append(self.graph_pred_linear_list[i](h_graph))
 
         return pred_list
-
-
-
-
-
-if __name__ == '__main__':
-    pass

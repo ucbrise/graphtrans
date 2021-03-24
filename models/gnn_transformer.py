@@ -9,10 +9,14 @@ import numpy as np
 
 class GNNTransformer(BaseModel):
     @staticmethod
+    def get_emb_dim(args):
+        return args.gnn_emb_dim
+    @staticmethod
     def add_args(parser):
         TransformerNodeEncoder.add_args(parser)
         group = parser.add_argument_group('GNNTransformer - Training Config')
         group.add_argument('--pretrained_gnn', type=str, default=None, help='pretrained gnn_node node embedding path')
+        # group.add_argument('--drop_last_pretrained', action='store_true', default=False, help='drop the last layer for the pretrained model')
         group.add_argument('--freeze_gnn', type=int, default=None, help='Freeze gnn_node weight from epoch `freeze_gnn`')
     
     @staticmethod
@@ -22,6 +26,10 @@ class GNNTransformer(BaseModel):
         name += f'+{args.gnn_type}'
         name += '-virtual' if args.gnn_virtual_node else ''
         name += f'-JK={args.gnn_JK}'
+        name += f'-enc_layer={args.num_encoder_layers}'
+        name += f'-d={args.d_model}'
+        name += f'-act={args.transformer_activation}'
+        name += f'-tdrop={args.transformer_dropout}'
         name += '-pretrained_gnn' if args.pretrained_gnn else ''
         name += f'-freeze_gnn={args.freeze_gnn}' if args.freeze_gnn is not None else ''
         return name
