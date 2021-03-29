@@ -4,7 +4,6 @@ import torch.nn.functional as F
 import numpy as np
 
 import models.gnn as gnn
-from modules.utils import pad_batch
 
 class TransformerNodeEncoder(nn.Module):
     @staticmethod
@@ -37,13 +36,12 @@ class TransformerNodeEncoder(nn.Module):
         if args.graph_pooling == 'cls':
             self.cls_embedding = nn.Parameter(torch.randn([1, 1, args.d_model], requires_grad=True))
 
-    def forward(self, h_node, batch):
+    def forward(self, padded_h_node, src_padding_mask):
         """
-            batch: (B * n_b): [0, 0, 1, 1, 1, 2]
-            h_node: (B * n_b) x h_d
+            padded_h_node: n_b x B x h_d
+            src_key_padding_mask: B x n_b
         """
 
-        padded_h_node, src_padding_mask = pad_batch(h_node, batch, self.max_input_len) # Pad in the front
         # (S, B, h_d), (B, S)
 
         if self.cls_embedding is not None:

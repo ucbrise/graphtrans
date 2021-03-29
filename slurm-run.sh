@@ -4,7 +4,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
-#SBATCH --exclude=freddie,blaze
+#SBATCH --exclude=freddie,blaze,bombe
 
 ### SBATCH --nodelist=atlas
 # echo CUDA_VISIBLE_DEVICES $CUDA_VISIBLE_DEVICES

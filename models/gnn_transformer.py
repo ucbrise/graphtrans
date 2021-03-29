@@ -6,6 +6,7 @@ from modules.transformer_encoder import TransformerNodeEncoder
 from .base_model import BaseModel
 
 import numpy as np
+from modules.utils import pad_batch
 
 class GNNTransformer(BaseModel):
     @staticmethod
@@ -68,7 +69,10 @@ class GNNTransformer(BaseModel):
     def forward(self, batched_data, perturb=None):
         h_node = self.gnn_node(batched_data, perturb)
         h_node = self.gnn2transformer(h_node) # [s, b, d_model]
-        transformer_out, mask = self.transformer_encoder(h_node, batched_data.batch) # [s, b, h], [b, s]
+
+        padded_h_node, src_padding_mask = pad_batch(h_node, batched_data.batch, self.transformer_encoder.max_input_len) # Pad in the front
+        
+        transformer_out, mask = self.transformer_encoder(h_node, src_key_padding_mask) # [s, b, h], [b, s]
 
         if self.pooling in ['last', 'cls']:
             h_graph = transformer_out[-1]

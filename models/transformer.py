@@ -1,24 +1,24 @@
 from .base_model import BaseModel
-from modules.multibranch_module import MultiBranchNode
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
 from modules.gnn_module import GNNNodeEmbedding
 from modules.transformer_encoder import TransformerNodeEncoder
+from modules.utils import pad_batch, unpad_batch
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
 import numpy as np
+from modules.utils import unpad_batch
 
-class MultiBranch(BaseModel):
+class GraphTransformer(BaseModel):
     @staticmethod
     def get_emb_dim(args):
-        return args.gnn_emb_dim + args.d_model
+        return args.d_model
     
     @staticmethod
     def add_args(parser):
         TransformerNodeEncoder.add_args(parser)
-        MultiBranchNode.add_args(parser)
     @staticmethod
     def name(args):
         name = f'{args.model_type}-pooling={args.graph_pooling}'
@@ -30,15 +30,11 @@ class MultiBranch(BaseModel):
 
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         super().__init__()
-        gnn_node = GNNNodeEmbedding(args.gnn_virtual_node, args.gnn_num_layer,
-                args.gnn_emb_dim, node_encoder, edge_encoder_cls, 
-                JK=args.gnn_JK, drop_ratio=args.gnn_dropout, 
-                residual=args.gnn_residual, gnn_type=args.gnn_type)
-        transformer_encoder = TransformerNodeEncoder(args)
+        self.transformer = TransformerNodeEncoder(args)
 
-        self.multibranch = MultiBranchNode(gnn_node, transformer_encoder, args)
+        self.node_encoder = node_encoder
 
-        self.emb_dim = self.multibranch.emb_dim
+        self.emb_dim = args.d_model
         self.num_tasks = num_tasks
         self.max_seq_len = args.max_seq_len
         self.graph_pooling = args.graph_pooling
@@ -54,6 +50,8 @@ class MultiBranch(BaseModel):
             self.pool = GlobalAttention(gate_nn = torch.nn.Sequential(torch.nn.Linear(self.emb_dim, 2*self.emb_dim), torch.nn.BatchNorm1d(2*self.emb_dim), torch.nn.ReLU(), torch.nn.Linear(2*self.emb_dim, 1)))
         elif self.graph_pooling == "set2set":
             self.pool = Set2Set(self.emb_dim, processing_steps = 2)
+        elif self.graph_pooling == 'cls':
+            self.pool = None
         else:
             raise ValueError("Invalid graph pooling type.")
 
@@ -72,9 +70,18 @@ class MultiBranch(BaseModel):
                     self.graph_pred_linear_list.append(torch.nn.Linear(self.emb_dim, self.num_tasks))
 
     def forward(self, batched_data, perturb=None):
-        h_node = self.multibranch(batched_data, perturb)
+        x, edge_index, edge_attr, batch = batched_data.x, batched_data.edge_index, batched_data.edge_attr, batched_data.batch
+        node_depth = batched_data.node_depth if hasattr(batched_data, "node_depth") else None
+        encoded_node = self.node_encoder(x) if node_depth is None else self.node_encoder(x, node_depth.view(-1, ))
+        tmp = encoded_node + perturb if perturb is not None else encoded_node
 
-        h_graph = self.pool(h_node, batched_data.batch)
+        h_node, src_key_padding_mask, num_nodes, mask, max_num_nodes = pad_batch(tmp, batch, self.transformer.max_input_len, get_mask=True)
+        h_node, src_key_padding_mask  = self.transformer(h_node, src_key_padding_mask)
+        if self.graph_pooling == 'cls':
+            h_graph = h_node[-1]
+        else:
+            h_node = unpad_batch(h_node, tmp, num_nodes, mask, max_num_nodes)
+            h_graph = self.pool(h_node, batched_data.batch)
 
         if self.max_seq_len is None:
             return self.graph_pred_linear(h_graph)
