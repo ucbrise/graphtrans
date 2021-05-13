@@ -15,7 +15,7 @@ from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
 import sys
 from trainers import get_trainer_and_parser
 from models import get_model_and_parser
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
 from dataset import DATASET_UTILS
 import utils
 
@@ -146,6 +146,8 @@ def main():
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler == 'plateau':
             scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
+        elif args.scheduler == 'cosine':
+            scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, verbose=True)
         elif args.scheduler is None:
             pass
         else:
