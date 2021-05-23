@@ -6,11 +6,19 @@ from modules.transformer_encoder import TransformerNodeEncoder
 from .base_model import BaseModel
 
 import numpy as np
+from modules.utils import pad_batch
 
 class GNNTransformer(BaseModel):
     @staticmethod
+    def get_emb_dim(args):
+        return args.gnn_emb_dim
+    @staticmethod
     def add_args(parser):
         TransformerNodeEncoder.add_args(parser)
+        group = parser.add_argument_group('GNNTransformer - Training Config')
+        group.add_argument('--pretrained_gnn', type=str, default=None, help='pretrained gnn_node node embedding path')
+        # group.add_argument('--drop_last_pretrained', action='store_true', default=False, help='drop the last layer for the pretrained model')
+        group.add_argument('--freeze_gnn', type=int, default=None, help='Freeze gnn_node weight from epoch `freeze_gnn`')
     
     @staticmethod
     def name(args):
@@ -18,16 +26,31 @@ class GNNTransformer(BaseModel):
         name += '-norm_input' if args.transformer_norm_input else ''
         name += f'+{args.gnn_type}'
         name += '-virtual' if args.gnn_virtual_node else ''
+        name += f'-JK={args.gnn_JK}'
+        name += f'-enc_layer={args.num_encoder_layers}'
+        name += f'-d={args.d_model}'
+        name += f'-act={args.transformer_activation}'
+        name += f'-tdrop={args.transformer_dropout}'
+        name += '-pretrained_gnn' if args.pretrained_gnn else ''
+        name += f'-freeze_gnn={args.freeze_gnn}' if args.freeze_gnn is not None else ''
         return name
 
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         super().__init__()
-        self.gnn = GNNNodeEmbedding(args.gnn_virtual_node, args.gnn_num_layer,
+        self.gnn_node = GNNNodeEmbedding(args.gnn_virtual_node, args.gnn_num_layer,
                 args.gnn_emb_dim, node_encoder, edge_encoder_cls, 
                 JK=args.gnn_JK, drop_ratio=args.gnn_dropout, 
                 residual=args.gnn_residual, gnn_type=args.gnn_type)
+        if args.pretrained_gnn:
+            # print(self.gnn_node)
+            state_dict = torch.load(args.pretrained_gnn)
+            state_dict = self._gnn_node_state(state_dict['model'])
+            print("Load GNN state from:", state_dict.keys())
+            self.gnn_node.load_state_dict(state_dict)
+        self.freeze_gnn = args.freeze_gnn
 
-        self.gnn2transformer = nn.Linear(args.gnn_emb_dim, args.d_model)
+        gnn_emb_dim = 2 * args.gnn_emb_dim if args.gnn_JK == 'cat' else args.gnn_emb_dim
+        self.gnn2transformer = nn.Linear(gnn_emb_dim, args.d_model)
         self.transformer_encoder = TransformerNodeEncoder(args)
 
         self.num_tasks = num_tasks
@@ -44,9 +67,12 @@ class GNNTransformer(BaseModel):
                 self.graph_pred_linear_list.append(torch.nn.Linear(output_dim, self.num_tasks))
 
     def forward(self, batched_data, perturb=None):
-        h_node = self.gnn(batched_data, perturb)
+        h_node = self.gnn_node(batched_data, perturb)
         h_node = self.gnn2transformer(h_node) # [s, b, d_model]
-        transformer_out, mask = self.transformer_encoder(h_node, batched_data.batch) # [s, b, h], [b, s]
+
+        padded_h_node, src_padding_mask = pad_batch(h_node, batched_data.batch, self.transformer_encoder.max_input_len) # Pad in the front
+        
+        transformer_out, mask = self.transformer_encoder(padded_h_node, src_padding_mask) # [s, b, h], [b, s]
 
         if self.pooling in ['last', 'cls']:
             h_graph = transformer_out[-1]
@@ -64,3 +90,20 @@ class GNNTransformer(BaseModel):
 
         return pred_list
         
+    def epoch_callback(self, epoch):
+        # TODO: maybe unfreeze the gnn at the end.
+        if self.freeze_gnn is not None and epoch >= self.freeze_gnn:
+            print(f"Freeze GNN weight after epoch: {epoch}")
+            for param in self.gnn_node.parameters():
+                param.requires_grad = False
+
+    def _gnn_node_state(self, state_dict):
+        module_name = 'gnn_node'
+        new_state_dict = dict()
+        for k, v in state_dict.items():
+            if module_name in k:
+                new_key = k.split('.')
+                module_index = new_key.index(module_name)
+                new_key = '.'.join(new_key[module_index + 1:])
+                new_state_dict[new_key] = v
+        return new_state_dict

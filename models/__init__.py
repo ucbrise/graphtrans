@@ -1,6 +1,8 @@
 from .gnn import GNN
 from .gnn_transformer import GNNTransformer
 from .pna import PNANet
+from .multibranch import MultiBranch
+from .transformer import GraphTransformer
 import functools
 
 def get_model_and_parser(args, parser):
@@ -12,4 +14,6 @@ MODELS = {
     'gnn': GNN,
     'pna': PNANet,
     'gnn-transformer': GNNTransformer,
+    'multibranch': MultiBranch,
+    'transformer': GraphTransformer
 }

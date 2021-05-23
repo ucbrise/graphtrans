@@ -1,45 +1,43 @@
-import torch
-from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
-import torch.nn.functional as F
-from modules.gnn_module import GNNNodeEmbedding
 from .base_model import BaseModel
+from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
+from modules.gnn_module import GNNNodeEmbedding
+from modules.transformer_encoder import TransformerNodeEncoder
+from modules.utils import pad_batch, unpad_batch
 
-class GNN(BaseModel):
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+import numpy as np
+from modules.utils import unpad_batch
+
+class GraphTransformer(BaseModel):
     @staticmethod
     def get_emb_dim(args):
-        return args.gnn_emb_dim
-
+        return args.d_model
+    
     @staticmethod
     def add_args(parser):
-        return
-
+        TransformerNodeEncoder.add_args(parser)
     @staticmethod
     def name(args):
-        name = f'{args.model_type}+{args.gnn_type}'
+        name = f'{args.model_type}-pooling={args.graph_pooling}'
+        name += f'+{args.gnn_type}'
         name += '-virtual' if args.gnn_virtual_node else ''
+        name += f'-d={args.d_model}'
+        name += f'-tdp={args.transformer_dropout}'
         return name
 
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
-        """
-            num_tasks (int): number of labels to be predicted
-            virtual_node (bool): whether to add virtual node or not
-        """
+        super().__init__()
+        self.transformer = TransformerNodeEncoder(args)
 
-        super(GNN, self).__init__()
+        self.node_encoder = node_encoder
 
-        self.num_layer = args.gnn_num_layer
-        self.drop_ratio = args.gnn_dropout
-        self.JK = args.gnn_JK
-        self.emb_dim = args.gnn_emb_dim
+        self.emb_dim = args.d_model
         self.num_tasks = num_tasks
         self.max_seq_len = args.max_seq_len
         self.graph_pooling = args.graph_pooling
-
-        if self.num_layer < 2:
-            raise ValueError("Number of GNN layers must be greater than 1.")
-
-        ### GNN to generate node embeddings
-        self.gnn_node = GNNNodeEmbedding(args.gnn_virtual_node, self.num_layer, self.emb_dim, node_encoder, edge_encoder_cls, JK = self.JK, drop_ratio = self.drop_ratio, residual = args.gnn_residual, gnn_type = args.gnn_type)
 
         ### Pooling function to generate whole-graph embeddings
         if self.graph_pooling == "sum":
@@ -52,6 +50,8 @@ class GNN(BaseModel):
             self.pool = GlobalAttention(gate_nn = torch.nn.Sequential(torch.nn.Linear(self.emb_dim, 2*self.emb_dim), torch.nn.BatchNorm1d(2*self.emb_dim), torch.nn.ReLU(), torch.nn.Linear(2*self.emb_dim, 1)))
         elif self.graph_pooling == "set2set":
             self.pool = Set2Set(self.emb_dim, processing_steps = 2)
+        elif self.graph_pooling == 'cls':
+            self.pool = None
         else:
             raise ValueError("Invalid graph pooling type.")
 
@@ -69,17 +69,19 @@ class GNN(BaseModel):
                 for i in range(self.max_seq_len):
                     self.graph_pred_linear_list.append(torch.nn.Linear(self.emb_dim, self.num_tasks))
 
-
     def forward(self, batched_data, perturb=None):
-        """
-            Return:
-                A (list of) predictions.
-                i-th element represents prediction at i-th position of the sequence.
-        """
+        x, edge_index, edge_attr, batch = batched_data.x, batched_data.edge_index, batched_data.edge_attr, batched_data.batch
+        node_depth = batched_data.node_depth if hasattr(batched_data, "node_depth") else None
+        encoded_node = self.node_encoder(x) if node_depth is None else self.node_encoder(x, node_depth.view(-1, ))
+        tmp = encoded_node + perturb if perturb is not None else encoded_node
 
-        h_node = self.gnn_node(batched_data, perturb)
-
-        h_graph = self.pool(h_node, batched_data.batch)
+        h_node, src_key_padding_mask, num_nodes, mask, max_num_nodes = pad_batch(tmp, batch, self.transformer.max_input_len, get_mask=True)
+        h_node, src_key_padding_mask  = self.transformer(h_node, src_key_padding_mask)
+        if self.graph_pooling == 'cls':
+            h_graph = h_node[-1]
+        else:
+            h_node = unpad_batch(h_node, tmp, num_nodes, mask, max_num_nodes)
+            h_graph = self.pool(h_node, batched_data.batch)
 
         if self.max_seq_len is None:
             return self.graph_pred_linear(h_graph)
@@ -88,10 +90,3 @@ class GNN(BaseModel):
             pred_list.append(self.graph_pred_linear_list[i](h_graph))
 
         return pred_list
-
-
-
-
-
-if __name__ == '__main__':
-    pass

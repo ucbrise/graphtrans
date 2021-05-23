@@ -4,6 +4,7 @@ from torch_geometric.nn import MessagePassing
 from torch_geometric.nn.inits import uniform
 from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
 from modules.conv import GINConv, GCNConv
+from modules.utils import pad_batch
 
 ### GNN to generate nodse embedding
 class GNN_node(torch.nn.Module):
@@ -191,6 +192,8 @@ class GNN_node_Virtualnode(torch.nn.Module):
             node_representation = 0
             for layer in range(self.num_layer):
                 node_representation += h_list[layer]
+        elif self.JK == "cat":
+            node_representation = torch.cat([h_list[0], h_list[-1]], dim=-1)
 
         return node_representation
 

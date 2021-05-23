@@ -1,0 +1,15 @@
+dataset: ogbg-code2
+aug: baseline
+model_type: transformer
+graph_pooling: cls
+
+seed: 12344
+batch_size: 16
+lr: 0.0001
+start-eval: 1
+scheduler: cosine
+
+num_encoder_layers: 5
+
+d_model: 256
+gnn_emb_dim: 256
