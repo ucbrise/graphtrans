@@ -1,7 +1,9 @@
 dataset: ogbg-ppa
-aug: flag
+aug: baseline
 model_type: gnn
 gnn_type: gin
 gnn_virtual_node: true
 runs: 5
-step-size: 5e-3
+batch_size: 256
+lr: 0.01
+scheduler: plateau
