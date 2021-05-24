@@ -1,3 +1,12 @@
+import os
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+from tqdm import tqdm
+
+import numpy as np
+from torchvision import transforms
 from warnings import warn
 class PPAUtil:
     def __init__(self):
@@ -23,7 +32,7 @@ class PPAUtil:
         y_true = []
         y_pred = []
 
-        for step, batch in enumerate(loader):
+        for step, batch in enumerate(tqdm(loader, desc="Eval")):
             batch = batch.to(device)
 
             if batch.x.shape[0] == 1:
