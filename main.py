@@ -15,7 +15,7 @@ from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
 import sys
 from trainers import get_trainer_and_parser
 from models import get_model_and_parser
-from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR, OneCycleLR
 from dataset import DATASET_UTILS
 import utils
 
@@ -66,9 +66,11 @@ def main():
     group.add_argument('--num_workers', type=int, default=0,
                         help='number of workers (default: 0)')
     group.add_argument('--scheduler', type=str, default=None)
+    group.add_argument('--pct_start', type=float, default=0.3)
     group.add_argument('--weight_decay', type=float, default=0.0)
     group.add_argument('--grad_clip', type=float, default=None)
     group.add_argument('--lr', type=float, default=0.001)
+    group.add_argument('--max_lr', type=float, default=0.001)
     group.add_argument('--runs', type=int, default=10)
     group.add_argument('--test-freq', type=int, default=1)
     group.add_argument('--start-eval', type=int, default=15)
@@ -104,6 +106,7 @@ def main():
     if args.resume is not None:
         args.save_path = args.resume
     print(args)
+    wandb.config.update(args)
 
     if args.seed is not None:
         random.seed(args.seed)
@@ -145,9 +148,12 @@ def main():
 
         optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler == 'plateau':
+            # NOTE(ajayjain): For Molehiv config, this min_lr is too high -- means that lr does not decay.
             scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
         elif args.scheduler == 'cosine':
-            scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs, verbose=True)
+            scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs * len(train_loader), verbose=True)
+        elif args.scheduler == 'onecycle':
+            scheduler = OneCycleLR(optimizer, max_lr=args.max_lr, epochs=args.epochs, steps_per_epoch=len(train_loader), pct_start=args.pct_start, verbose=True)
         elif args.scheduler is None:
             pass
         else:
@@ -171,7 +177,7 @@ def main():
             print('Training...')
             print("Total parameters:", utils.num_total_parameters(model))
             print("Trainable parameters:", utils.num_trainable_parameters(model))
-            loss = train(model, device, train_loader, optimizer, args, calc_loss)
+            loss = train(model, device, train_loader, optimizer, args, calc_loss, scheduler if args.scheduler != 'plateau' else None)
 
             model.epoch_callback(epoch)
             wandb.log({
@@ -184,8 +190,6 @@ def main():
                 valid_perf = eval(model, device, valid_loader, evaluator)
                 valid_metric = valid_perf[dataset.eval_metric]
                 scheduler.step(valid_metric)
-            elif args.scheduler is not None:
-                scheduler.step()
             if epoch > args.start_eval and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
                 print('Evaluating...')
                 train_perf = eval(model, device, train_loader, evaluator)

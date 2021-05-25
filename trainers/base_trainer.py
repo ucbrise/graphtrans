@@ -12,7 +12,7 @@ class BaseTrainer:
         pass
     
     @staticmethod
-    def train(model, device, loader, optimizer, args, calc_loss):
+    def train(model, device, loader, optimizer, args, calc_loss, scheduler=None):
         model.train()
 
         loss_accum = 0
@@ -31,6 +31,9 @@ class BaseTrainer:
                 if args.grad_clip is not None:
                     torch.nn.utils.clip_grad_norm_(model.parameters(), args.grad_clip)
                 optimizer.step()
+
+                if scheduler:
+                    scheduler.step()
                 
                 detached_loss = loss.item()
                 wandb.log({'train/iter-loss': detached_loss})

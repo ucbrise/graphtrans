@@ -1,5 +1,7 @@
 import torch
 from tqdm import tqdm
+import wandb
+
 from .base_trainer import BaseTrainer
 from trainers import register_trainer
 
@@ -47,7 +49,9 @@ class FlagTrainer(BaseTrainer):
                 loss.backward()
                 optimizer.step()
 
-                loss_accum += loss.item()
+                detached_loss = loss.item()
+                loss_accum += detached_loss
+                wandb.log({'train/iter-loss': detached_loss})
 
         return loss_accum / (step + 1)
 
