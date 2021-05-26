@@ -9,7 +9,7 @@ class TransformerNodeEncoder(nn.Module):
     @staticmethod
     def add_args(parser):
         group = parser.add_argument_group('transformer')
-        group.add_argument('--d_model', type=int, default=128, help='transformer d_model. Currently should be equal to emb_dim')
+        group.add_argument('--d_model', type=int, default=128, help='transformer d_model.')
         group.add_argument('--nhead', type=int, default=4, help='transformer heads')
         group.add_argument('--dim_feedforward', type=int, default=512, help='transformer feedforward dim')
         group.add_argument('--transformer_dropout', type=float, default=0.3)

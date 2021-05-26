@@ -90,7 +90,7 @@ def main():
     data_transform = trainer.transform(args)
 
     run_name = f'{args.dataset}+{model_cls.name(args)}'
-    run_name += f'+{trainer.name(args)}'
+    run_name += f'+{trainer.name(args)}+lr={args.lr}'
     if args.scheduler is not None:
         run_name = run_name+f'+sch={args.scheduler}'
     if args.seed:

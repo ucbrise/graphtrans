@@ -31,6 +31,7 @@ class GNNTransformer(BaseModel):
         name += f'-d={args.d_model}'
         name += f'-act={args.transformer_activation}'
         name += f'-tdrop={args.transformer_dropout}'
+        name += f'-gdrop={args.gnn_dropout}'
         name += '-pretrained_gnn' if args.pretrained_gnn else ''
         name += f'-freeze_gnn={args.freeze_gnn}' if args.freeze_gnn is not None else ''
         return name

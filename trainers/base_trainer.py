@@ -33,7 +33,7 @@ class BaseTrainer:
                 optimizer.step()
                 
                 detached_loss = loss.item()
-                wandb.log({'train/iter-loss': detached_loss})
+                # wandb.log({'train/iter-loss': detached_loss})
                 loss_accum += detached_loss
 
         print('Average training loss: {}'.format(loss_accum / (step + 1)))
