@@ -132,16 +132,23 @@ def main():
     calc_loss = dataset_util.loss_fn(task_type)
     eval = dataset_util.eval
 
-
-    train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size,
-                              shuffle=True, num_workers=args.num_workers, pin_memory=True)
-    valid_loader = DataLoader(dataset_eval[split_idx["valid"]], batch_size=args.batch_size,
-                              shuffle=False, num_workers=args.num_workers, pin_memory=True)
-    test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size,
-                             shuffle=False, num_workers=args.num_workers, pin_memory=True)
+    def create_loader(dataset, dataset_eval):
+        train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size,
+                                shuffle=True, num_workers=args.num_workers, pin_memory=True)
+        valid_loader = DataLoader(dataset_eval[split_idx["valid"]], batch_size=args.batch_size,
+                                shuffle=False, num_workers=args.num_workers, pin_memory=True)
+        test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size,
+                                shuffle=False, num_workers=args.num_workers, pin_memory=True)
+        return train_loader, valid_loader, test_loader
+    train_loader, valid_loader, test_loader = create_loader(dataset, dataset_eval)
 
 
     def run(run_id):
+        if 'ogb' not in args.dataset:
+            dataset, num_tasks, node_encoder, edge_encoder_cls, deg = dataset_util.preprocess(args)
+            dataset_eval = dataset
+            train_loader, valid_loader, test_loader = create_loader(dataset, dataset_eval)
+
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
         model = model_cls(num_tasks=num_tasks, args=args, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls).to(device)

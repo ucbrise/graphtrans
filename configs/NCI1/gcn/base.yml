@@ -1,0 +1,9 @@
+dataset: NCI1
+aug: baseline
+model_type: gnn
+gnn_type: gcn
+gnn_virtual_node: false
+runs: 5
+epochs: 200
+seed: 12344
+scheduler: plateau
