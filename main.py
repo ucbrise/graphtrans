@@ -114,19 +114,24 @@ def main():
             cudnn.deterministic = True
             torch.cuda.manual_seed(args.seed)
 
-    # automatic dataloading and splitting
-    dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)
-    dataset_eval = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
-    task_type = dataset.task_type
-    
-    split_idx = dataset.get_idx_split()
+    if 'ogb' in args.dataset:
+        # automatic dataloading and splitting
+        dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)
+        dataset_eval = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
+        
+        num_tasks, node_encoder, edge_encoder_cls, deg= dataset_util.preprocess(dataset, dataset_eval, model_cls, args)
+        # automatic evaluator. takes dataset name as input
+        evaluator = Evaluator(args.dataset)
+    else:
+        dataset, num_tasks, node_encoder, edge_encoder_cls, deg = dataset_util.preprocess(args)
+        dataset_eval = dataset
+        evaluator = None
 
-    num_tasks, node_encoder, edge_encoder_cls, deg= dataset_util.preprocess(dataset, dataset_eval, model_cls, args)
+    task_type = dataset.task_type
+    split_idx = dataset.get_idx_split()
     calc_loss = dataset_util.loss_fn(task_type)
     eval = dataset_util.eval
 
-    # automatic evaluator. takes dataset name as input
-    evaluator = Evaluator(args.dataset)
 
     train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size,
                               shuffle=True, num_workers=args.num_workers, pin_memory=True)

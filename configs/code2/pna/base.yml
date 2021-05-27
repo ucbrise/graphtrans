@@ -1,0 +1,17 @@
+dataset: ogbg-code2
+aug: baseline
+model_type: pna
+runs: 1
+seed: 12344
+gnn_emb_dim: 272
+scheduler: plateau
+lr: 0.00063096
+
+gnn_num_layer: 4
+batch_size: 128
+epochs: 30
+weight_decay: 3e-6
+gnn_dropout: 0
+
+start-eval: 10
+test-freq: 5
