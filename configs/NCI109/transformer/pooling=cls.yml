@@ -15,3 +15,5 @@ d_model: 256
 gnn_emb_dim: 256
 
 transformer_dropout: 0.1
+
+epochs: 100

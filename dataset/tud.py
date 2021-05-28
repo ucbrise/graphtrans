@@ -38,7 +38,7 @@ class TUUtil:
             pred = model(batch)
             pred = pred.max(dim=1)[1]
             correct += pred.eq(batch.y).sum().item()
-        return {"acc": correct / len(loader)}
+        return {"acc": correct / len(loader.dataset)}
 
     @staticmethod
     def preprocess(args):
@@ -63,9 +63,9 @@ class TUUtil:
         dataset.task_type = "classification"
         dataset.get_idx_split = lambda: {"train": "train", "valid": "valid", "test": "test"}
 
-        node_encoder = nn.Linear(num_features, args.gnn_emb_dim)
+        node_encoder_cls = lambda: nn.Linear(num_features, args.gnn_emb_dim)
         def edge_encoder_cls(_):
             def zero(_):
                 return 0
             return zero
-        return dataset, num_tasks, node_encoder, edge_encoder_cls, None
+        return dataset, num_tasks, node_encoder_cls, edge_encoder_cls, None

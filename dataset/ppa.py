@@ -60,8 +60,8 @@ class PPAUtil:
             dataset_transform.append(dataset.transform)
         dataset.transform = transforms.Compose(dataset_transform)
         edge_encoder_cls = lambda emb_dim: nn.Linear(7, emb_dim)
-        node_encoder = nn.Embedding(1, args.gnn_emb_dim)
-        return dataset.num_classes, node_encoder, edge_encoder_cls, None
+        node_encoder_cls = lambda: nn.Embedding(1, args.gnn_emb_dim)
+        return dataset.num_classes, node_encoder_cls, edge_encoder_cls, None
 
 
 

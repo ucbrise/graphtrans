@@ -79,6 +79,6 @@ class MolUtil:
         print("Avg num nodes:", num_nodes / num_graphs)
         print("Avg deg:", deg)
 
-        node_encoder = AtomEncoder(model_cls.get_emb_dim(args))
+        node_encoder_cls = lambda: AtomEncoder(model_cls.get_emb_dim(args))
         edge_encoder_cls = lambda emb_dim: BondEncoder(emb_dim=emb_dim)
-        return dataset.num_tasks, node_encoder, edge_encoder_cls, deg
+        return dataset.num_tasks, node_encoder_cls, edge_encoder_cls, deg

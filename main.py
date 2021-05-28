@@ -90,7 +90,7 @@ def main():
     data_transform = trainer.transform(args)
 
     run_name = f'{args.dataset}+{model_cls.name(args)}'
-    run_name += f'+{trainer.name(args)}+lr={args.lr}'
+    run_name += f'+{trainer.name(args)}+lr={args.lr}+wd={args.weight_decay}'
     if args.scheduler is not None:
         run_name = run_name+f'+sch={args.scheduler}'
     if args.seed:
@@ -116,19 +116,19 @@ def main():
 
     if 'ogb' in args.dataset:
         # automatic dataloading and splitting
-        dataset = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)
-        dataset_eval = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
+        dataset_ = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)
+        dataset_eval_ = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
         
-        num_tasks, node_encoder, edge_encoder_cls, deg= dataset_util.preprocess(dataset, dataset_eval, model_cls, args)
+        num_tasks, node_encoder_cls, edge_encoder_cls, deg = dataset_util.preprocess(dataset_, dataset_eval_, model_cls, args)
         # automatic evaluator. takes dataset name as input
         evaluator = Evaluator(args.dataset)
     else:
-        dataset, num_tasks, node_encoder, edge_encoder_cls, deg = dataset_util.preprocess(args)
-        dataset_eval = dataset
+        dataset_, num_tasks, node_encoder_cls, edge_encoder_cls, deg = dataset_util.preprocess(args)
+        dataset_eval_ = dataset_
         evaluator = None
 
-    task_type = dataset.task_type
-    split_idx = dataset.get_idx_split()
+    task_type = dataset_.task_type
+    split_idx = dataset_.get_idx_split()
     calc_loss = dataset_util.loss_fn(task_type)
     eval = dataset_util.eval
 
@@ -140,14 +140,18 @@ def main():
         test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size,
                                 shuffle=False, num_workers=args.num_workers, pin_memory=True)
         return train_loader, valid_loader, test_loader
-    train_loader, valid_loader, test_loader = create_loader(dataset, dataset_eval)
+    train_loader_, valid_loader_, test_loader_ = create_loader(dataset_, dataset_eval_)
 
 
     def run(run_id):
         if 'ogb' not in args.dataset:
-            dataset, num_tasks, node_encoder, edge_encoder_cls, deg = dataset_util.preprocess(args)
+            dataset, _, _, _, _ = dataset_util.preprocess(args)
             dataset_eval = dataset
             train_loader, valid_loader, test_loader = create_loader(dataset, dataset_eval)
+        else:
+            train_loader, valid_loader, test_loader = train_loader_, valid_loader_, test_loader_
+            dataset = dataset_
+        node_encoder = node_encoder_cls()
 
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
