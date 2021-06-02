@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import numpy as np
 from modules.utils import unpad_batch
 
-class GraphTransformer(BaseModel):
+class Transformer(BaseModel):
     @staticmethod
     def get_emb_dim(args):
         return args.d_model
