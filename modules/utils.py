@@ -1,3 +1,6 @@
+import torch
+
+
 def pad_batch(h_node, batch, max_input_len, get_mask=False):
     num_batch = batch[-1] + 1
     num_nodes = []

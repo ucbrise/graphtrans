@@ -1,26 +1,28 @@
-import torch
-from torch_geometric.data import DataLoader
-import torch.optim as optim
-import torch.nn.functional as F
-import random
-from tqdm import tqdm
-import configargparse
-import time
-import numpy as np
 import os
-
-# importing OGB
-from ogb.graphproppred import PygGraphPropPredDataset, Evaluator
-
-import sys
-from trainers import get_trainer_and_parser
-from models import get_model_and_parser
-from torch.optim.lr_scheduler import ReduceLROnPlateau, CosineAnnealingLR, OneCycleLR
-from dataset import DATASET_UTILS
-import utils
-
+import random
 from datetime import datetime
+
+import configargparse
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from ogb.graphproppred import Evaluator, PygGraphPropPredDataset
+from torch.optim.lr_scheduler import (CosineAnnealingLR, OneCycleLR,
+                                      ReduceLROnPlateau)
+from torch_geometric.data import DataLoader
+from tqdm import tqdm
+
+import utils
 import wandb
+from data.adj_list import compute_adjacency_list_cached
+from dataset import DATASET_UTILS
+from models import get_model_and_parser
+from trainers import get_trainer_and_parser
+
+from loguru import logger
+
 wandb.init(project='graph-aug')
 now = datetime.now()
 now = now.strftime("%m_%d-%H_%M_%S")
@@ -30,6 +32,7 @@ def main():
     parser = configargparse.ArgumentParser(allow_abbrev=False,
                                     description='GNN baselines on ogbg-code data with Pytorch Geometrics')
     parser.add_argument('--configs', required=False, is_config_file=True)
+    parser.add_argument('--wandb_run_idx', type=str, default=None)
 
 
     parser.add_argument('--data_root', type=str, default='/data/zhwu/ogb')
@@ -57,10 +60,12 @@ def main():
     group.add_argument('--gnn_residual', action='store_true', default=False)
 
     group = parser.add_argument_group('training')
-    group.add_argument('--devices', type=int, default=0,
+    group.add_argument('--devices', type=str, default="0",
                         help='which gpu to use if any (default: 0)')
     group.add_argument('--batch_size', type=int, default=128,
                         help='input batch size for training (default: 128)')
+    group.add_argument('--eval_batch_size', type=int, default=None,
+                        help='input batch size for training (default: train batch size)')
     group.add_argument('--epochs', type=int, default=30,
                         help='number of epochs to train (default: 30)')
     group.add_argument('--num_workers', type=int, default=0,
@@ -97,15 +102,17 @@ def main():
         run_name = run_name+f'+sch={args.scheduler}'
     if args.seed:
         run_name = run_name + f'+seed{args.seed}'
-    wandb.run.name = run_name
-    wandb.run.save()
+    if args.wandb_run_idx is not None:
+        run_name = args.wandb_run_idx + "_" + run_name
 
-    device = torch.device("cuda") if torch.cuda.is_available() and args.devices >= 0 else torch.device("cpu")
+    wandb.run.name = run_name
+
+    device = torch.device("cuda") if torch.cuda.is_available() and args.devices else torch.device("cpu")
     args.save_path = f'exps/{run_name}-{now}'
     os.makedirs(args.save_path, exist_ok=True)
     if args.resume is not None:
         args.save_path = args.resume
-    print(args)
+    logger.info(args)
     wandb.config.update(args)
 
     if args.seed is not None:
@@ -114,17 +121,15 @@ def main():
         torch.manual_seed(args.seed)
 
         if device == torch.cuda.is_available():
-            cudnn.deterministic = True
+            # cudnn.deterministic = True
             torch.cuda.manual_seed(args.seed)
 
     if 'ogb' in args.dataset:
         # automatic dataloading and splitting
         dataset_ = PygGraphPropPredDataset(name=args.dataset, root=args.data_root, transform=data_transform)
         dataset_eval_ = PygGraphPropPredDataset(name = args.dataset, root=args.data_root)
-        
         num_tasks, node_encoder_cls, edge_encoder_cls, deg = dataset_util.preprocess(dataset_, dataset_eval_, model_cls, args)
-        # automatic evaluator. takes dataset name as input
-        evaluator = Evaluator(args.dataset)
+        evaluator = Evaluator(args.dataset)  # automatic evaluator. takes dataset name as input
     else:
         dataset_, num_tasks, node_encoder_cls, edge_encoder_cls, deg = dataset_util.preprocess(args)
         dataset_eval_ = dataset_
@@ -135,14 +140,22 @@ def main():
     calc_loss = dataset_util.loss_fn(task_type)
     eval = dataset_util.eval
 
+
     def create_loader(dataset, dataset_eval):
-        train_loader = DataLoader(dataset[split_idx["train"]], batch_size=args.batch_size,
+        test_data = compute_adjacency_list_cached(dataset[split_idx["test"]], key=f'{args.dataset}_test')
+        valid_data = compute_adjacency_list_cached(dataset_eval[split_idx["valid"]], key=f'{args.dataset}_valid')
+        train_data = compute_adjacency_list_cached(dataset[split_idx["train"]], key=f'{args.dataset}_train')
+        logger.info("Finished computing adjacency list")
+
+        eval_bs = args.batch_size if args.eval_batch_size is None else args.eval_batch_size
+        train_loader = DataLoader(train_data, batch_size=args.batch_size,
                                 shuffle=True, num_workers=args.num_workers, pin_memory=True)
-        valid_loader = DataLoader(dataset_eval[split_idx["valid"]], batch_size=args.batch_size,
+        valid_loader = DataLoader(valid_data, batch_size=eval_bs,
                                 shuffle=False, num_workers=args.num_workers, pin_memory=True)
-        test_loader = DataLoader(dataset[split_idx["test"]], batch_size=args.batch_size,
+        test_loader = DataLoader(test_data, batch_size=eval_bs,
                                 shuffle=False, num_workers=args.num_workers, pin_memory=True)
         return train_loader, valid_loader, test_loader
+    
     train_loader_, valid_loader_, test_loader_ = create_loader(dataset_, dataset_eval_)
 
 
@@ -159,17 +172,18 @@ def main():
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
         model = model_cls(num_tasks=num_tasks, args=args, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls).to(device)
+        # model = nn.DataParallel(model)
         
         wandb.watch(model)
 
-        optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+        optimizer = optim.AdamW(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
         if args.scheduler == 'plateau':
-            # NOTE(ajayjain): For Molehiv config, this min_lr is too high -- means that lr does not decay.
-            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001, verbose=True)
+            # NOTE(ajayjain): For Molhiv config, this min_lr is too high -- means that lr does not decay.
+            scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=20, min_lr=0.0001, verbose=False)
         elif args.scheduler == 'cosine':
-            scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs * len(train_loader), verbose=True)
+            scheduler = CosineAnnealingLR(optimizer, T_max=args.epochs * len(train_loader), verbose=False)
         elif args.scheduler == 'onecycle':
-            scheduler = OneCycleLR(optimizer, max_lr=args.max_lr, epochs=args.epochs, steps_per_epoch=len(train_loader), pct_start=args.pct_start, verbose=True)
+            scheduler = OneCycleLR(optimizer, max_lr=args.max_lr, epochs=args.epochs, steps_per_epoch=len(train_loader), pct_start=args.pct_start, verbose=False)
         elif args.scheduler is None:
             pass
         else:
@@ -185,13 +199,13 @@ def main():
             optimizer.load_state_dict(state_dict['optimizer'])
             if args.scheduler:
                 scheduler.load_state_dict(state_dict['scheduler'])
-            print("[Resume] Loaded:", last_model_path, "epoch:", start_epoch)
+            logger.info("[Resume] Loaded:", last_model_path, "epoch:", start_epoch)
 
         model.epoch_callback(epoch=start_epoch - 1)
         for epoch in range(start_epoch, args.epochs + 1):
-            print("=====Epoch {}=====".format(epoch))
-            print('Training...')
-            print("Total parameters:", utils.num_total_parameters(model))
+            logger.info("=====Epoch {}=====".format(epoch))
+            logger.info('Training...')
+            logger.info("Total parameters:", utils.num_total_parameters(model))
             print("Trainable parameters:", utils.num_trainable_parameters(model))
             loss = train(model, device, train_loader, optimizer, args, calc_loss, scheduler if args.scheduler != 'plateau' else None)
 
@@ -208,12 +222,11 @@ def main():
                 scheduler.step(valid_metric)
             if epoch > args.start_eval and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
                 print('Evaluating...')
-                train_perf = eval(model, device, train_loader, evaluator)
-                if args.scheduler !=  'plateau':
-                    valid_perf = eval(model, device, valid_loader, evaluator)
-                test_perf = eval(model, device, test_loader, evaluator)
-
-                # print({'Train': train_perf, 'Validation': valid_perf, 'Test': test_perf})
+                with torch.no_grad():
+                    train_perf = eval(model, device, train_loader_eval, evaluator)
+                    if args.scheduler !=  'plateau':
+                        valid_perf = eval(model, device, valid_loader, evaluator)
+                    test_perf = eval(model, device, test_loader, evaluator)
 
                 train_metric, valid_metric, test_metric = train_perf[dataset.eval_metric], valid_perf[dataset.eval_metric], test_perf[dataset.eval_metric]
                 wandb.log({
@@ -239,10 +252,10 @@ def main():
                     wandb.run.summary[f"best/valid/{dataset.eval_metric}-runs{run_id}"] = valid_metric
                     wandb.run.summary[f"best/test/{dataset.eval_metric}-runs{run_id}"] = test_metric
                     torch.save(state_dict, os.path.join(args.save_path, str(run_id), 'best_model.pt'))
-                    print("[Best Model] Save model:", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
+                    logger.info("[Best Model] Save model:", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
                     
         state_dict = torch.load(os.path.join(args.save_path, str(run_id), 'best_model.pt'))
-        print("[Evaluate] Loaded from", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
+        logger.info("[Evaluate] Loaded from", os.path.join(args.save_path, str(run_id), 'best_model.pt'))
         model.load_state_dict(state_dict['model'])
         best_valid_perf = eval(model, device, valid_loader, evaluator)
         best_test_perf = eval(model, device, test_loader, evaluator)
@@ -253,9 +266,9 @@ def main():
         best_val, final_test = run(run_id)
         vals.append(best_val)
         tests.append(final_test)
-        print(f'Run {run_id} - val: {best_val}, test: {final_test}')
-    print(f"Average val accuracy: {np.mean(vals)} ± {np.std(vals)}")
-    print(f"Average test accuracy: {np.mean(tests)} ± {np.std(tests)}")
+        logger.info(f'Run {run_id} - val: {best_val}, test: {final_test}')
+    logger.info(f"Average val accuracy: {np.mean(vals)} ± {np.std(vals)}")
+    logger.info(f"Average test accuracy: {np.mean(tests)} ± {np.std(tests)}")
 
 if __name__ == "__main__":
     main()

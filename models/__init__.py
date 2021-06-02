@@ -2,9 +2,8 @@ from .gnn import GNN
 from .gnn_transformer import GNNTransformer
 from .pna_transformer import PNATransformer
 from .pna import PNANet
-from .multibranch import MultiBranch
 from .transformer import Transformer
-import functools
+
 
 def get_model_and_parser(args, parser):
     model_cls = MODELS[args.model_type]

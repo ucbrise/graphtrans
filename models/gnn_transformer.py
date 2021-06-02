@@ -3,6 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from modules.gnn_module import GNNNodeEmbedding
 from modules.transformer_encoder import TransformerNodeEncoder
+from modules.masked_transformer_encoder import MaskedOnlyTransformerEncoder
 from .base_model import BaseModel
 
 import numpy as np
@@ -15,9 +16,9 @@ class GNNTransformer(BaseModel):
     @staticmethod
     def add_args(parser):
         TransformerNodeEncoder.add_args(parser)
+        MaskedOnlyTransformerEncoder.add_args(parser)
         group = parser.add_argument_group('GNNTransformer - Training Config')
         group.add_argument('--pretrained_gnn', type=str, default=None, help='pretrained gnn_node node embedding path')
-        # group.add_argument('--drop_last_pretrained', action='store_true', default=False, help='drop the last layer for the pretrained model')
         group.add_argument('--freeze_gnn', type=int, default=None, help='Freeze gnn_node weight from epoch `freeze_gnn`')
     
     @staticmethod
@@ -28,12 +29,14 @@ class GNNTransformer(BaseModel):
         name += '-virtual' if args.gnn_virtual_node else ''
         name += f'-JK={args.gnn_JK}'
         name += f'-enc_layer={args.num_encoder_layers}'
+        name += f'-enc_layer_masked={args.num_encoder_layers_masked}'
         name += f'-d={args.d_model}'
         name += f'-act={args.transformer_activation}'
         name += f'-tdrop={args.transformer_dropout}'
         name += f'-gdrop={args.gnn_dropout}'
         name += '-pretrained_gnn' if args.pretrained_gnn else ''
         name += f'-freeze_gnn={args.freeze_gnn}' if args.freeze_gnn is not None else ''
+        name += '-prenorm' if args.transformer_prenorm else '-postnorm'
         return name
 
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
@@ -53,6 +56,9 @@ class GNNTransformer(BaseModel):
         gnn_emb_dim = 2 * args.gnn_emb_dim if args.gnn_JK == 'cat' else args.gnn_emb_dim
         self.gnn2transformer = nn.Linear(gnn_emb_dim, args.d_model)
         self.transformer_encoder = TransformerNodeEncoder(args)
+        self.masked_transformer_encoder = MaskedOnlyTransformerEncoder(args)
+        self.num_encoder_layers = args.num_encoder_layers
+        self.num_encoder_layers_masked = args.num_encoder_layers_masked
 
         self.num_tasks = num_tasks
         self.pooling = args.graph_pooling
@@ -71,14 +77,24 @@ class GNNTransformer(BaseModel):
         h_node = self.gnn_node(batched_data, perturb)
         h_node = self.gnn2transformer(h_node) # [s, b, d_model]
 
-        padded_h_node, src_padding_mask = pad_batch(h_node, batched_data.batch, self.transformer_encoder.max_input_len) # Pad in the front
+        padded_h_node, src_padding_mask, num_nodes, mask, max_num_nodes = pad_batch(h_node, batched_data.batch, self.transformer_encoder.max_input_len, get_mask=True) # Pad in the front
         
-        transformer_out, mask = self.transformer_encoder(padded_h_node, src_padding_mask) # [s, b, h], [b, s]
+        # TODO(paras): implement mask
+        transformer_out = padded_h_node
+        if self.num_encoder_layers_masked > 0:
+            adj_list = batched_data.adj_list
+            padded_adj_list = torch.zeros((len(adj_list), max_num_nodes, max_num_nodes), device=h_node.device)
+            for idx, adj_list_item in enumerate(adj_list):
+                N, _ = adj_list_item.shape
+                padded_adj_list[idx, 0:N, 0:N] = torch.from_numpy(adj_list_item)   
+            transformer_out = self.masked_transformer_encoder(transformer_out.transpose(0, 1), attn_mask=padded_adj_list, valid_input_mask=src_padding_mask).transpose(0, 1)
+        if self.num_encoder_layers > 0:
+            transformer_out, _ = self.transformer_encoder(transformer_out, src_padding_mask) # [s, b, h], [b, s]
 
         if self.pooling in ['last', 'cls']:
             h_graph = transformer_out[-1]
         elif self.pooling == 'mean':
-            h_graph = transformer_out.sum(0) / (~mask).sum(-1, keepdim=True)
+            h_graph = transformer_out.sum(0) / src_padding_mask.sum(-1, keepdim=True)
         else:
             raise NotImplementedError
 
