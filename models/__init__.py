@@ -10,10 +10,5 @@ def get_model_and_parser(args, parser):
     model_cls.add_args(parser)
     return model_cls
 
-MODELS = {
-    'gnn': GNN,
-    'pna': PNANet,
-    'gnn-transformer': GNNTransformer,
-    'transformer': Transformer,
-    'pna-transformer': PNATransformer
-}
+
+MODELS = {"gnn": GNN, "pna": PNANet, "gnn-transformer": GNNTransformer, "transformer": Transformer, "pna-transformer": PNATransformer}

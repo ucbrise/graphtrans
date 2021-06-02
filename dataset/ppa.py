@@ -8,9 +8,12 @@ from tqdm import tqdm
 import numpy as np
 from torchvision import transforms
 from warnings import warn
+
+
 class PPAUtil:
     def __init__(self):
         warn("This PPA method has not been tested yet.")
+
     @staticmethod
     def add_args(parser):
         parser.set_defaults(gnn_dropout=0.5)
@@ -20,10 +23,17 @@ class PPAUtil:
     @staticmethod
     def loss_fn(_):
         multicls_criterion = torch.nn.CrossEntropyLoss()
+
         def calc_loss(pred, batch, m=1.0):
-            loss = multicls_criterion(pred.to(torch.float32), batch.y.view(-1,))
+            loss = multicls_criterion(
+                pred.to(torch.float32),
+                batch.y.view(
+                    -1,
+                ),
+            )
             loss /= m
             return loss
+
         return calc_loss
 
     @staticmethod
@@ -41,11 +51,11 @@ class PPAUtil:
                 with torch.no_grad():
                     pred = model(batch)
 
-                y_true.append(batch.y.view(-1,1).detach().cpu())
-                y_pred.append(torch.argmax(pred.detach(), dim = 1).view(-1,1).cpu())
+                y_true.append(batch.y.view(-1, 1).detach().cpu())
+                y_pred.append(torch.argmax(pred.detach(), dim=1).view(-1, 1).cpu())
 
-        y_true = torch.cat(y_true, dim = 0).numpy()
-        y_pred = torch.cat(y_pred, dim = 0).numpy()
+        y_true = torch.cat(y_true, dim=0).numpy()
+        y_pred = torch.cat(y_pred, dim=0).numpy()
 
         input_dict = {"y_true": y_true, "y_pred": y_pred}
 
@@ -62,8 +72,6 @@ class PPAUtil:
         edge_encoder_cls = lambda emb_dim: nn.Linear(7, emb_dim)
         node_encoder_cls = lambda: nn.Embedding(1, args.gnn_emb_dim)
         return dataset.num_classes, node_encoder_cls, edge_encoder_cls, None
-
-
 
 
 def add_zeros(data):

@@ -106,7 +106,7 @@ class MaskedOnlyTransformerEncoder(nn.Module):
     def add_args(parser):
         group = parser.add_argument_group("Masked Transformer Encoder -- architecture config")
         group.add_argument("--num_encoder_layers_masked", type=int, default=0)
-        group.add_argument('--transformer_prenorm', action='store_true', default=False)
+        group.add_argument("--transformer_prenorm", action="store_true", default=False)
 
     def __init__(self, args):
         super().__init__()
@@ -121,10 +121,10 @@ class MaskedOnlyTransformerEncoder(nn.Module):
         )
         logger.info("number of parameters: %e" % sum(p.numel() for p in self.parameters()))
 
-    def forward(self, x, attn_mask = None, valid_input_mask = None):
+    def forward(self, x, attn_mask=None, valid_input_mask=None):
         """
         padded_h_node: n_b x B x h_d
         src_key_padding_mask: B x n_b
         """
-        x = self.masked_transformer(x, attn_mask = attn_mask, valid_input_mask = valid_input_mask)
+        x = self.masked_transformer(x, attn_mask=attn_mask, valid_input_mask=valid_input_mask)
         return x

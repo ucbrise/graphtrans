@@ -6,20 +6,21 @@ from typing import Optional
 # Implemented with the help of Matthias Fey, author of PyTorch Geometric
 # For an example see https://github.com/rusty1s/pytorch_geometric/blob/master/examples/pna.py
 
+
 def aggregate_sum(src: Tensor, index: Tensor, dim_size: Optional[int]):
-    return scatter(src, index, 0, None, dim_size, reduce='sum')
+    return scatter(src, index, 0, None, dim_size, reduce="sum")
 
 
 def aggregate_mean(src: Tensor, index: Tensor, dim_size: Optional[int]):
-    return scatter(src, index, 0, None, dim_size, reduce='mean')
+    return scatter(src, index, 0, None, dim_size, reduce="mean")
 
 
 def aggregate_min(src: Tensor, index: Tensor, dim_size: Optional[int]):
-    return scatter(src, index, 0, None, dim_size, reduce='min')
+    return scatter(src, index, 0, None, dim_size, reduce="min")
 
 
 def aggregate_max(src: Tensor, index: Tensor, dim_size: Optional[int]):
-    return scatter(src, index, 0, None, dim_size, reduce='max')
+    return scatter(src, index, 0, None, dim_size, reduce="max")
 
 
 def aggregate_var(src, index, dim_size):
@@ -33,10 +34,10 @@ def aggregate_std(src, index, dim_size):
 
 
 AGGREGATORS = {
-    'sum': aggregate_sum,
-    'mean': aggregate_mean,
-    'min': aggregate_min,
-    'max': aggregate_max,
-    'var': aggregate_var,
-    'std': aggregate_std,
+    "sum": aggregate_sum,
+    "mean": aggregate_mean,
+    "min": aggregate_min,
+    "max": aggregate_max,
+    "var": aggregate_var,
+    "std": aggregate_std,
 }

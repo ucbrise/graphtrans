@@ -22,11 +22,12 @@ def pad_batch(h_node, batch, max_input_len, get_mask=False):
         if num_node > max_num_nodes:
             num_node = max_num_nodes
         padded_h_node[-num_node:, i] = h_node[mask][-num_node:]
-        src_padding_mask[i, :max_num_nodes - num_node] = True # [b, s]
-        
+        src_padding_mask[i, : max_num_nodes - num_node] = True  # [b, s]
+
     if get_mask:
         return padded_h_node, src_padding_mask, num_nodes, masks, max_num_nodes
     return padded_h_node, src_padding_mask
+
 
 def unpad_batch(padded_h_node, prev_h_node, num_nodes, origin_mask, max_num_nodes):
     """
@@ -44,7 +45,7 @@ def unpad_batch(padded_h_node, prev_h_node, num_nodes, origin_mask, max_num_node
             indices = mask.nonzero()
             indices = indices[-num_node:]
             mask = torch.zeros_like(mask)
-            mask[indices[:,0], indices[:,1]] = True
+            mask[indices[:, 0], indices[:, 1]] = True
         # logger.info("prev_h_node:", prev_h_node.size())
         # logger.info("padded_h_node:", padded_h_node.size())
         # logger.info("mask:", mask.size())

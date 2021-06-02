@@ -3,6 +3,7 @@ import torch
 import wandb
 from loguru import logger
 
+
 class BaseTrainer:
     @staticmethod
     def transform(args):
@@ -11,7 +12,7 @@ class BaseTrainer:
     @staticmethod
     def add_args(parser):
         pass
-    
+
     @staticmethod
     def train(model, device, loader, optimizer, args, calc_loss, scheduler=None):
         model.train()
@@ -26,7 +27,7 @@ class BaseTrainer:
             else:
                 optimizer.zero_grad()
                 pred_list = model(batch)
-                
+
                 loss = calc_loss(pred_list, batch)
 
                 loss.backward()
@@ -36,13 +37,13 @@ class BaseTrainer:
 
                 if scheduler:
                     scheduler.step()
-                
+
                 detached_loss = loss.item()
                 loss_accum += detached_loss
                 t.set_description(f"Train (loss = {detached_loss:.4f}, smoothed = {loss_accum / (step + 1):.4f})")
-                wandb.log({'train/iter-loss': detached_loss, 'train/iter-loss-smoothed': loss_accum / (step + 1)})
+                wandb.log({"train/iter-loss": detached_loss, "train/iter-loss-smoothed": loss_accum / (step + 1)})
 
-        logger.info('Average training loss: {}'.format(loss_accum / (step + 1)))
+        logger.info("Average training loss: {}".format(loss_accum / (step + 1)))
         return loss_accum / (step + 1)
 
     @staticmethod

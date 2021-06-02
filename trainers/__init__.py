@@ -9,6 +9,7 @@ __all__ = {
     "BaseTrainer",
 }
 
+
 def get_trainer_and_parser(args, parser):
     trainer = TRAINER_REGISTRY[args.aug]
     trainer.add_args(parser)
@@ -34,15 +35,9 @@ def register_trainer(name, dataclass=None):
         if name in TRAINER_REGISTRY:
             raise ValueError("Cannot register duplicate task ({})".format(name))
         if not issubclass(cls, BaseTrainer):
-            raise ValueError(
-                "Trainer ({}: {}) must extend BaseTrainer".format(name, cls.__name__)
-            )
+            raise ValueError("Trainer ({}: {}) must extend BaseTrainer".format(name, cls.__name__))
         if cls.__name__ in TRAINER_CLASS_NAMES:
-            raise ValueError(
-                "Cannot register task with duplicate class name ({})".format(
-                    cls.__name__
-                )
-            )
+            raise ValueError("Cannot register task with duplicate class name ({})".format(cls.__name__))
         TRAINER_REGISTRY[name] = cls
         TRAINER_CLASS_NAMES.add(cls.__name__)
 
@@ -55,10 +50,6 @@ def register_trainer(name, dataclass=None):
 trainers_dir = os.path.dirname(__file__)
 for file in os.listdir(trainers_dir):
     path = os.path.join(trainers_dir, file)
-    if (
-        not file.startswith("_")
-        and not file.startswith(".")
-        and (file.endswith(".py") or os.path.isdir(path))
-    ):
+    if not file.startswith("_") and not file.startswith(".") and (file.endswith(".py") or os.path.isdir(path)):
         trainer_name = file[: file.find(".py")] if file.endswith(".py") else file
         module = importlib.import_module("trainers." + trainer_name)

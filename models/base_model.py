@@ -1,11 +1,12 @@
 import torch
 import torch.nn as nn
 
+
 class BaseModel(nn.Module):
     @staticmethod
     def need_deg():
         return False
-        
+
     @staticmethod
     def add_args(parser):
         return
@@ -19,6 +20,6 @@ class BaseModel(nn.Module):
 
     def forward(self, batched_data, perturb=None):
         raise NotImplementedError
-    
+
     def epoch_callback(self, epoch):
         return
