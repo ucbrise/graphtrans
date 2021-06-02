@@ -4,17 +4,25 @@ import torch.nn.functional as F
 from modules.gnn_module import GNNNodeEmbedding
 from modules.transformer_encoder import TransformerNodeEncoder
 from .base_model import BaseModel
+from modules.pna.pna_module import PNANodeEmbedding
 
 import numpy as np
 from modules.utils import pad_batch
 
-class GNNTransformer(BaseModel):
+class PNATransformer(BaseModel):
     @staticmethod
     def get_emb_dim(args):
         return args.gnn_emb_dim
+
+    @staticmethod
+    def need_deg():
+        return True
+        
     @staticmethod
     def add_args(parser):
         TransformerNodeEncoder.add_args(parser)
+        PNANodeEmbedding.add_args(parser)
+
         group = parser.add_argument_group('GNNTransformer - Training Config')
         group.add_argument('--pretrained_gnn', type=str, default=None, help='pretrained gnn_node node embedding path')
         # group.add_argument('--drop_last_pretrained', action='store_true', default=False, help='drop the last layer for the pretrained model')
@@ -38,10 +46,7 @@ class GNNTransformer(BaseModel):
 
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         super().__init__()
-        self.gnn_node = GNNNodeEmbedding(args.gnn_virtual_node, args.gnn_num_layer,
-                args.gnn_emb_dim, node_encoder, edge_encoder_cls, 
-                JK=args.gnn_JK, drop_ratio=args.gnn_dropout, 
-                residual=args.gnn_residual, gnn_type=args.gnn_type)
+        self.gnn_node = PNANodeEmbedding(node_encoder, args)
         if args.pretrained_gnn:
             # print(self.gnn_node)
             state_dict = torch.load(args.pretrained_gnn)

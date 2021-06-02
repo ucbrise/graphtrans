@@ -95,7 +95,7 @@ class CodeUtil:
         # 1. node type
         # 2. node attribute
         # 3. node depth
-        node_encoder = ASTNodeEncoder(args.gnn_emb_dim, num_nodetypes=len(
+        node_encoder_cls = lambda: ASTNodeEncoder(args.gnn_emb_dim, num_nodetypes=len(
             nodetypes_mapping['type']), num_nodeattributes=len(nodeattributes_mapping['attr']), max_depth=20)
         edge_encoder_cls = lambda emb_dim: nn.Linear(2, emb_dim)
 
@@ -113,4 +113,4 @@ class CodeUtil:
             args.deg = deg
             print("Avg num nodes:", num_nodes / num_graphs)
             print("Avg deg:", deg)
-        return len(vocab2idx), node_encoder, edge_encoder_cls, deg
+        return len(vocab2idx), node_encoder_cls, edge_encoder_cls, deg
