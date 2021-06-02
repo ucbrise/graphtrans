@@ -62,7 +62,7 @@ class MolUtil:
         if args.feature == 'full':
             pass 
         elif args.feature == 'simple':
-            print('using simple feature')
+            logger.info('using simple feature')
             # only retain the top two node/edge features
             dataset.data.x = dataset.data.x[:,:2]
             dataset.data.edge_attr = dataset.data.edge_attr[:,:2]
@@ -76,8 +76,8 @@ class MolUtil:
             num_nodes += data.num_nodes
             num_graphs +=1
         args.deg = deg
-        print("Avg num nodes:", num_nodes / num_graphs)
-        print("Avg deg:", deg)
+        logger.debug("Avg num nodes:", num_nodes / num_graphs)
+        logger.debug("Avg deg:", deg)
 
         node_encoder_cls = lambda: AtomEncoder(model_cls.get_emb_dim(args))
         edge_encoder_cls = lambda emb_dim: BondEncoder(emb_dim=emb_dim)

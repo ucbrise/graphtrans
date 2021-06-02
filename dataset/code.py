@@ -70,7 +70,7 @@ class CodeUtil:
     def preprocess(self, dataset, dataset_eval, model_cls, args):
         split_idx = dataset.get_idx_split()
         seq_len_list = np.array([len(seq) for seq in dataset.data.y])
-        print('Target seqence less or equal to {} is {}%.'.format(
+        logger.error('Target seqence less or equal to {} is {}%.'.format(
             args.max_seq_len, np.sum(seq_len_list <= args.max_seq_len) / len(seq_len_list)))
 
         # building vocabulary for sequence predition. Only use training data.
@@ -111,6 +111,6 @@ class CodeUtil:
                 num_nodes += data.num_nodes
                 num_graphs += 1
             args.deg = deg
-            print("Avg num nodes:", num_nodes / num_graphs)
-            print("Avg deg:", deg)
+            logger.debug("Avg num nodes:", num_nodes / num_graphs)
+            logger.debug("Avg deg:", deg)
         return len(vocab2idx), node_encoder_cls, edge_encoder_cls, deg

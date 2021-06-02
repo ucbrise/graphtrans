@@ -5,6 +5,7 @@ from modules.gnn_module import GNNNodeEmbedding
 from modules.transformer_encoder import TransformerNodeEncoder
 from modules.masked_transformer_encoder import MaskedOnlyTransformerEncoder
 from .base_model import BaseModel
+from loguru import logger
 
 import numpy as np
 from modules.utils import pad_batch
@@ -46,10 +47,10 @@ class GNNTransformer(BaseModel):
                 JK=args.gnn_JK, drop_ratio=args.gnn_dropout, 
                 residual=args.gnn_residual, gnn_type=args.gnn_type)
         if args.pretrained_gnn:
-            # print(self.gnn_node)
+            # logger.info(self.gnn_node)
             state_dict = torch.load(args.pretrained_gnn)
             state_dict = self._gnn_node_state(state_dict['model'])
-            print("Load GNN state from:", state_dict.keys())
+            logger.info("Load GNN state from:", state_dict.keys())
             self.gnn_node.load_state_dict(state_dict)
         self.freeze_gnn = args.freeze_gnn
 
@@ -110,7 +111,7 @@ class GNNTransformer(BaseModel):
     def epoch_callback(self, epoch):
         # TODO: maybe unfreeze the gnn at the end.
         if self.freeze_gnn is not None and epoch >= self.freeze_gnn:
-            print(f"Freeze GNN weight after epoch: {epoch}")
+            logger.info(f"Freeze GNN weight after epoch: {epoch}")
             for param in self.gnn_node.parameters():
                 param.requires_grad = False
 

@@ -2,6 +2,7 @@ import torch
 from collections import Counter
 import numpy as np
 import torch
+from loguru import logger
 
 class ASTNodeEncoder(torch.nn.Module):
     '''
@@ -59,15 +60,15 @@ def get_vocab_mapping(seq_list, num_vocab):
     cnt_list = np.array([vocab_cnt[w] for w in vocab_list])
     topvocab = np.argsort(-cnt_list, kind = 'stable')[:num_vocab]
 
-    print('Coverage of top {} vocabulary:'.format(num_vocab))
-    print(float(np.sum(cnt_list[topvocab]))/np.sum(cnt_list))
+    logger.info('Coverage of top {} vocabulary:'.format(num_vocab))
+    logger.info(float(np.sum(cnt_list[topvocab]))/np.sum(cnt_list))
 
     vocab2idx = {vocab_list[vocab_idx]: idx for idx, vocab_idx in enumerate(topvocab)}
     idx2vocab = [vocab_list[vocab_idx] for vocab_idx in topvocab]
 
-    # print(topvocab)
-    # print([vocab_list[v] for v in topvocab[:10]])
-    # print([vocab_list[v] for v in topvocab[-10:]])
+    # logger.info(topvocab)
+    # logger.info([vocab_list[v] for v in topvocab[:10]])
+    # logger.info([vocab_list[v] for v in topvocab[-10:]])
 
     vocab2idx['__UNK__'] = num_vocab
     idx2vocab.append('__UNK__')
@@ -182,9 +183,8 @@ def decode_arr_to_seq(arr, idx2vocab):
 def test():
     seq_list = [['a', 'b'], ['a', 'b', 'c', 'df', 'f', '2edea', 'a'], ['eraea', 'a', 'c'], ['d'], ['4rq4f','f','a','a', 'g']]
     vocab2idx, idx2vocab = get_vocab_mapping(seq_list, 4)
-    print(vocab2idx)
-    print(idx2vocab)
-    print()
+    logger.debug(vocab2idx)
+    logger.debug(idx2vocab)
     assert(len(vocab2idx) == len(idx2vocab))
 
     for vocab, idx in vocab2idx.items():
@@ -192,16 +192,15 @@ def test():
 
 
     for seq in seq_list:
-        print(seq)
+        logger.debug(seq)
         arr = encode_seq_to_arr(seq, vocab2idx, max_seq_len = 4)[0]
         # Test the effect of predicting __EOS__
         # arr[2] = vocab2idx['__EOS__']
-        print(arr)
+        logger.debug(arr)
         seq_dec = decode_arr_to_seq(arr, idx2vocab)
 
-        print(arr)
-        print(seq_dec)
-        print('')
+        logger.debug(arr)
+        logger.debug(seq_dec)
 
 
 

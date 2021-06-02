@@ -5,6 +5,7 @@ from modules.gnn_module import GNNNodeEmbedding
 from modules.transformer_encoder import TransformerNodeEncoder
 from .base_model import BaseModel
 from modules.pna.pna_module import PNANodeEmbedding
+from loguru import logger
 
 import numpy as np
 from modules.utils import pad_batch
@@ -48,10 +49,10 @@ class PNATransformer(BaseModel):
         super().__init__()
         self.gnn_node = PNANodeEmbedding(node_encoder, args)
         if args.pretrained_gnn:
-            # print(self.gnn_node)
+            # logger.info(self.gnn_node)
             state_dict = torch.load(args.pretrained_gnn)
             state_dict = self._gnn_node_state(state_dict['model'])
-            print("Load GNN state from:", state_dict.keys())
+            logger.info("Load GNN state from:", state_dict.keys())
             self.gnn_node.load_state_dict(state_dict)
         self.freeze_gnn = args.freeze_gnn
 
@@ -99,7 +100,7 @@ class PNATransformer(BaseModel):
     def epoch_callback(self, epoch):
         # TODO: maybe unfreeze the gnn at the end.
         if self.freeze_gnn is not None and epoch >= self.freeze_gnn:
-            print(f"Freeze GNN weight after epoch: {epoch}")
+            logger.info(f"Freeze GNN weight after epoch: {epoch}")
             for param in self.gnn_node.parameters():
                 param.requires_grad = False
 

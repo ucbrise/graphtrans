@@ -206,7 +206,7 @@ def main():
             logger.info("=====Epoch {}=====".format(epoch))
             logger.info('Training...')
             logger.info("Total parameters:", utils.num_total_parameters(model))
-            print("Trainable parameters:", utils.num_trainable_parameters(model))
+            logger.info("Trainable parameters:", utils.num_trainable_parameters(model))
             loss = train(model, device, train_loader, optimizer, args, calc_loss, scheduler if args.scheduler != 'plateau' else None)
 
             model.epoch_callback(epoch)
@@ -221,7 +221,7 @@ def main():
                 valid_metric = valid_perf[dataset.eval_metric]
                 scheduler.step(valid_metric)
             if epoch > args.start_eval and epoch % args.test_freq == 0 or epoch in [1, args.epochs]:
-                print('Evaluating...')
+                logger.info('Evaluating...')
                 with torch.no_grad():
                     train_perf = eval(model, device, train_loader_eval, evaluator)
                     if args.scheduler !=  'plateau':
@@ -234,8 +234,8 @@ def main():
                         f'valid/{dataset.eval_metric}-runs{run_id}': valid_metric,
                         f'test/{dataset.eval_metric}-runs{run_id}': test_metric,
                         'epoch': epoch})
-                print(f"Running: {run_name} (runs {run_id})")
-                print(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
+                logger.info(f"Running: {run_name} (runs {run_id})")
+                logger.info(f"Run {run_id} - train: {train_metric}, val: {valid_metric}, test: {test_metric}")
                 
                 # Save checkpoints
                 state_dict = {
@@ -245,7 +245,7 @@ def main():
                 }
                 state_dict["scheduler"] = scheduler.state_dict() if args.scheduler else None
                 torch.save(state_dict, os.path.join(args.save_path, str(run_id), 'last_model.pt'))
-                print("[Save] Save model:", os.path.join(args.save_path, str(run_id), 'last_model.pt'))
+                logger.info("[Save] Save model:", os.path.join(args.save_path, str(run_id), 'last_model.pt'))
                 if best_val < valid_metric:
                     best_val = valid_metric
                     final_test = test_metric
