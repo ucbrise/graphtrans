@@ -1,9 +1,0 @@
-dataset: ogbg-molhiv
-aug: baseline
-model_type: gnn
-gnn_type: gin
-gnn_virtual_node: false
-runs: 5
-batch_size: 256
-lr: 0.01
-scheduler: plateau

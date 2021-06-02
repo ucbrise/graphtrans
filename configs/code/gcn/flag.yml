@@ -1,4 +1,0 @@
-aug: flag
-model_type: gnn
-gnn_type: gcn
-runs: 5

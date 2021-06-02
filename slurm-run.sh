@@ -4,12 +4,7 @@
 #SBATCH --ntasks-per-node=1
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=10
-#SBATCH --exclude=freddie,blaze,ace
 
-### SBATCH --nodelist=atlas
-# echo CUDA_VISIBLE_DEVICES $CUDA_VISIBLE_DEVICES
-# AVAILABLE_GPU=$((`gpustat | awk '{print $NF}' | grep -n "|" | cut -d : -f 1` - 2))
-# CUDA_VISIBLE_DEVICES=$AVAILABLE_GPU
 config=$1
 
 echo $(scontrol show hostnames $SLURM_JOB_NODELIST)

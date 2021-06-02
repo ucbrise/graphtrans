@@ -15,7 +15,6 @@ MODELS = {
     'gnn': GNN,
     'pna': PNANet,
     'gnn-transformer': GNNTransformer,
-    'multibranch': MultiBranch,
     'transformer': GraphTransformer,
     'pna-transformer': PNATransformer
 }

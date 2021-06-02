@@ -1,7 +1,7 @@
 #!/bin/bash
-source ~/.bashrc
+# source ~/.bashrc
 conda create -n graph-aug python=3.8 -y
-conda activate graph-aug
+source activate graph-aug
 conda install -n graph-aug pytorch=1.7 torchvision torchaudio cudatoolkit=10.2 -c pytorch -y
 
 TORCH=1.7.0

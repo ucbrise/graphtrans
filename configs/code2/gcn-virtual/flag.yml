@@ -1,8 +1,0 @@
-dataset: ogbg-code2
-
-aug: flag
-model_type: gnn
-gnn_type: gcn
-gnn_virtual_node: true
-seed: 12344
-runs: 1
