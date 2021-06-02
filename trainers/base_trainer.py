@@ -43,7 +43,7 @@ class BaseTrainer:
                 t.set_description(f"Train (loss = {detached_loss:.4f}, smoothed = {loss_accum / (step + 1):.4f})")
                 wandb.log({"train/iter-loss": detached_loss, "train/iter-loss-smoothed": loss_accum / (step + 1)})
 
-        logger.info("Average training loss: {}".format(loss_accum / (step + 1)))
+        logger.info("Average training loss: {:.4f}".format(loss_accum / (step + 1)))
         return loss_accum / (step + 1)
 
     @staticmethod

@@ -200,14 +200,14 @@ def main():
             optimizer.load_state_dict(state_dict["optimizer"])
             if args.scheduler:
                 scheduler.load_state_dict(state_dict["scheduler"])
-            logger.info("[Resume] Loaded:", last_model_path, "epoch:", start_epoch)
+            logger.info("[Resume] Loaded: {last_model_path} epoch: {start_epoch}")
 
         model.epoch_callback(epoch=start_epoch - 1)
         for epoch in range(start_epoch, args.epochs + 1):
-            logger.info("=====Epoch {}=====".format(epoch))
+            logger.info("=====Epoch {epoch}=====")
             logger.info("Training...")
-            logger.info("Total parameters:", utils.num_total_parameters(model))
-            logger.info("Trainable parameters:", utils.num_trainable_parameters(model))
+            logger.info("Total parameters: {}", utils.num_total_parameters(model))
+            logger.info("Trainable parameters: {}", utils.num_trainable_parameters(model))
             loss = train(model, device, train_loader, optimizer, args, calc_loss, scheduler if args.scheduler != "plateau" else None)
 
             model.epoch_callback(epoch)
@@ -245,17 +245,17 @@ def main():
                 state_dict = {"model": model.state_dict(), "optimizer": optimizer.state_dict(), "epoch": epoch}
                 state_dict["scheduler"] = scheduler.state_dict() if args.scheduler else None
                 torch.save(state_dict, os.path.join(args.save_path, str(run_id), "last_model.pt"))
-                logger.info("[Save] Save model:", os.path.join(args.save_path, str(run_id), "last_model.pt"))
+                logger.info("[Save] Save model: {}", os.path.join(args.save_path, str(run_id), "last_model.pt"))
                 if best_val < valid_metric:
                     best_val = valid_metric
                     final_test = test_metric
                     wandb.run.summary[f"best/valid/{dataset.eval_metric}-runs{run_id}"] = valid_metric
                     wandb.run.summary[f"best/test/{dataset.eval_metric}-runs{run_id}"] = test_metric
                     torch.save(state_dict, os.path.join(args.save_path, str(run_id), "best_model.pt"))
-                    logger.info("[Best Model] Save model:", os.path.join(args.save_path, str(run_id), "best_model.pt"))
+                    logger.info("[Best Model] Save model: {}", os.path.join(args.save_path, str(run_id), "best_model.pt"))
 
         state_dict = torch.load(os.path.join(args.save_path, str(run_id), "best_model.pt"))
-        logger.info("[Evaluate] Loaded from", os.path.join(args.save_path, str(run_id), "best_model.pt"))
+        logger.info("[Evaluate] Loaded from {}", os.path.join(args.save_path, str(run_id), "best_model.pt"))
         model.load_state_dict(state_dict["model"])
         best_valid_perf = eval(model, device, valid_loader, evaluator)
         best_test_perf = eval(model, device, test_loader, evaluator)

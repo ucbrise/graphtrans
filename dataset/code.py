@@ -127,6 +127,6 @@ class CodeUtil:
                 num_nodes += data.num_nodes
                 num_graphs += 1
             args.deg = deg
-            logger.debug("Avg num nodes:", num_nodes / num_graphs)
-            logger.debug("Avg deg:", deg)
+            logger.debug("Avg num nodes: {}", num_nodes / num_graphs)
+            logger.debug("Avg deg: {}", deg)
         return len(vocab2idx), node_encoder_cls, edge_encoder_cls, deg

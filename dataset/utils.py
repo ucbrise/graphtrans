@@ -60,8 +60,7 @@ def get_vocab_mapping(seq_list, num_vocab):
     cnt_list = np.array([vocab_cnt[w] for w in vocab_list])
     topvocab = np.argsort(-cnt_list, kind="stable")[:num_vocab]
 
-    logger.info("Coverage of top {} vocabulary:".format(num_vocab))
-    logger.info(float(np.sum(cnt_list[topvocab])) / np.sum(cnt_list))
+    logger.info("Coverage of top {} vocabulary: {:.4f}", num_vocab, float(np.sum(cnt_list[topvocab])) / np.sum(cnt_list))
 
     vocab2idx = {vocab_list[vocab_idx]: idx for idx, vocab_idx in enumerate(topvocab)}
     idx2vocab = [vocab_list[vocab_idx] for vocab_idx in topvocab]

@@ -54,7 +54,7 @@ class PNATransformer(BaseModel):
             # logger.info(self.gnn_node)
             state_dict = torch.load(args.pretrained_gnn)
             state_dict = self._gnn_node_state(state_dict["model"])
-            logger.info("Load GNN state from:", state_dict.keys())
+            logger.info("Load GNN state from: {}", state_dict.keys())
             self.gnn_node.load_state_dict(state_dict)
         self.freeze_gnn = args.freeze_gnn
 
