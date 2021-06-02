@@ -1,9 +1,9 @@
 import os
 import pickle
 
+import numpy as np
 import torch
 from loguru import logger
-import numpy as np
 from tqdm import tqdm
 
 

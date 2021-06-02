@@ -1,7 +1,7 @@
-from tqdm import tqdm
 import torch
 import wandb
 from loguru import logger
+from tqdm import tqdm
 
 
 class BaseTrainer:

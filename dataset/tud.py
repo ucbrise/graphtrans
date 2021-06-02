@@ -1,13 +1,13 @@
+import os
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import os
-from tqdm import tqdm
-
-from torch_geometric.utils import degree
-from torch_geometric.datasets import TUDataset
-import numpy as np
 from torch.utils.data import random_split
+from torch_geometric.datasets import TUDataset
+from torch_geometric.utils import degree
+from tqdm import tqdm
 
 
 class TUUtil:

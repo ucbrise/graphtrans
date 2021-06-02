@@ -1,14 +1,15 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from modules.gnn_module import GNNNodeEmbedding
-from modules.transformer_encoder import TransformerNodeEncoder
-from .base_model import BaseModel
-from modules.pna.pna_module import PNANodeEmbedding
 from loguru import logger
 
-import numpy as np
+from modules.gnn_module import GNNNodeEmbedding
+from modules.pna.pna_module import PNANodeEmbedding
+from modules.transformer_encoder import TransformerNodeEncoder
 from modules.utils import pad_batch
+
+from .base_model import BaseModel
 
 
 class PNATransformer(BaseModel):

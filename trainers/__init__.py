@@ -1,6 +1,7 @@
-from .base_trainer import BaseTrainer
-import os
 import importlib
+import os
+
+from .base_trainer import BaseTrainer
 
 TRAINER_REGISTRY = {}
 TRAINER_CLASS_NAMES = set()

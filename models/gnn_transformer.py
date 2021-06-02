@@ -1,14 +1,15 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from modules.gnn_module import GNNNodeEmbedding
-from modules.transformer_encoder import TransformerNodeEncoder
-from modules.masked_transformer_encoder import MaskedOnlyTransformerEncoder
-from .base_model import BaseModel
 from loguru import logger
 
-import numpy as np
+from modules.gnn_module import GNNNodeEmbedding
+from modules.masked_transformer_encoder import MaskedOnlyTransformerEncoder
+from modules.transformer_encoder import TransformerNodeEncoder
 from modules.utils import pad_batch
+
+from .base_model import BaseModel
 
 
 class GNNTransformer(BaseModel):

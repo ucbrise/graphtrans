@@ -1,12 +1,20 @@
-import torch.nn as nn
-from torch_geometric.nn import PNAConv
 import torch
-from torch_geometric.nn import BatchNorm
-from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
-from ogb.graphproppred.mol_encoder import AtomEncoder
+import torch.nn as nn
 import torch.nn.functional as F
-from .base_model import BaseModel
+from ogb.graphproppred.mol_encoder import AtomEncoder
+from torch_geometric.nn import (
+    BatchNorm,
+    GlobalAttention,
+    PNAConv,
+    Set2Set,
+    global_add_pool,
+    global_max_pool,
+    global_mean_pool,
+)
+
 from modules.pna.pna_module import PNANodeEmbedding
+
+from .base_model import BaseModel
 
 
 class PNANet(BaseModel):

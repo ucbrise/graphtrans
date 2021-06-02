@@ -1,20 +1,23 @@
 import os
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
 from torch_geometric.utils import degree
 from torchvision import transforms
-
-# importing utils
-from .utils import ASTNodeEncoder, get_vocab_mapping
+from tqdm import tqdm
 
 # for data transform
-from .utils import augment_edge, encode_y_to_arr, decode_arr_to_seq
+# importing utils
+from .utils import (
+    ASTNodeEncoder,
+    augment_edge,
+    decode_arr_to_seq,
+    encode_y_to_arr,
+    get_vocab_mapping,
+)
 
 
 class CodeUtil:

@@ -1,7 +1,7 @@
 from .gnn import GNN
 from .gnn_transformer import GNNTransformer
-from .pna_transformer import PNATransformer
 from .pna import PNANet
+from .pna_transformer import PNATransformer
 from .transformer import Transformer
 
 

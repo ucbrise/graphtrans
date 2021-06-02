@@ -1,5 +1,6 @@
-from .base_trainer import BaseTrainer
 from trainers import register_trainer
+
+from .base_trainer import BaseTrainer
 
 
 @register_trainer("baseline")

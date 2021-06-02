@@ -1,6 +1,7 @@
+from typing import Dict
+
 import torch
 from torch import Tensor
-from typing import Dict
 
 # Implemented with the help of Matthias Fey, author of PyTorch Geometric
 # For an example see https://github.com/rusty1s/pytorch_geometric/blob/master/examples/pna.py

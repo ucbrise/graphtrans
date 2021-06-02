@@ -1,13 +1,10 @@
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-
-from tqdm import tqdm
-
+from ogb.graphproppred.mol_encoder import AtomEncoder, BondEncoder
 from torch_geometric.utils import degree
-from ogb.graphproppred.mol_encoder import BondEncoder
-from ogb.graphproppred.mol_encoder import AtomEncoder
-import numpy as np
+from tqdm import tqdm
 
 
 class MolUtil:

@@ -1,14 +1,14 @@
-from typing import Optional, List, Dict
-from torch_geometric.typing import Adj, OptTensor
+from typing import Dict, List, Optional
 
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
+from ogb.graphproppred.mol_encoder import BondEncoder
 from torch import Tensor
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import reset
+from torch_geometric.typing import Adj, OptTensor
 from torch_geometric.utils import degree
-from ogb.graphproppred.mol_encoder import BondEncoder
 
 from .pna.aggregators import AGGREGATORS
 from .pna.scalers import SCALERS

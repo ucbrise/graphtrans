@@ -1,9 +1,10 @@
 import torch
-from tqdm import tqdm
 import wandb
+from tqdm import tqdm
+
+from trainers import register_trainer
 
 from .base_trainer import BaseTrainer
-from trainers import register_trainer
 
 
 @register_trainer("flag")

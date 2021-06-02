@@ -1,7 +1,8 @@
+from typing import Optional
+
 import torch
 from torch import Tensor
 from torch_scatter import scatter
-from typing import Optional
 
 # Implemented with the help of Matthias Fey, author of PyTorch Geometric
 # For an example see https://github.com/rusty1s/pytorch_geometric/blob/master/examples/pna.py

@@ -1,15 +1,20 @@
-from .base_model import BaseModel
-from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torch_geometric.nn import (
+    GlobalAttention,
+    Set2Set,
+    global_add_pool,
+    global_max_pool,
+    global_mean_pool,
+)
+
 from modules.gnn_module import GNNNodeEmbedding
 from modules.transformer_encoder import TransformerNodeEncoder
 from modules.utils import pad_batch, unpad_batch
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-
-import numpy as np
-from modules.utils import unpad_batch
+from .base_model import BaseModel
 
 
 class Transformer(BaseModel):

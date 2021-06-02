@@ -8,19 +8,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
+import wandb
+from loguru import logger
 from ogb.graphproppred import Evaluator, PygGraphPropPredDataset
 from torch.optim.lr_scheduler import CosineAnnealingLR, OneCycleLR, ReduceLROnPlateau
 from torch_geometric.data import DataLoader
 from tqdm import tqdm
 
 import utils
-import wandb
 from data.adj_list import compute_adjacency_list_cached
 from dataset import DATASET_UTILS
 from models import get_model_and_parser
 from trainers import get_trainer_and_parser
-
-from loguru import logger
 
 wandb.init(project="graph-aug")
 now = datetime.now()
