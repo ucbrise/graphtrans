@@ -1,0 +1,7 @@
+# .gitignore
+.vscode
+wandb
+__pycache__
+slurm-*.out
+*.log
+exps/
