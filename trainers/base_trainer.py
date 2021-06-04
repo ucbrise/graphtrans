@@ -1,6 +1,8 @@
-from tqdm import tqdm
 import torch
 import wandb
+from loguru import logger
+from tqdm import tqdm
+
 
 class BaseTrainer:
     @staticmethod
@@ -10,13 +12,14 @@ class BaseTrainer:
     @staticmethod
     def add_args(parser):
         pass
-    
+
     @staticmethod
     def train(model, device, loader, optimizer, args, calc_loss, scheduler=None):
         model.train()
 
         loss_accum = 0
-        for step, batch in enumerate(tqdm(loader, desc="Train")):
+        t = tqdm(loader, desc="Train")
+        for step, batch in enumerate(t):
             batch = batch.to(device)
 
             if batch.x.shape[0] == 1 or batch.batch[-1] == 0:
@@ -24,7 +27,7 @@ class BaseTrainer:
             else:
                 optimizer.zero_grad()
                 pred_list = model(batch)
-                
+
                 loss = calc_loss(pred_list, batch)
 
                 loss.backward()
@@ -34,12 +37,13 @@ class BaseTrainer:
 
                 if scheduler:
                     scheduler.step()
-                
-                detached_loss = loss.item()
-                # wandb.log({'train/iter-loss': detached_loss})
-                loss_accum += detached_loss
 
-        print('Average training loss: {}'.format(loss_accum / (step + 1)))
+                detached_loss = loss.item()
+                loss_accum += detached_loss
+                t.set_description(f"Train (loss = {detached_loss:.4f}, smoothed = {loss_accum / (step + 1):.4f})")
+                wandb.log({"train/iter-loss": detached_loss, "train/iter-loss-smoothed": loss_accum / (step + 1)})
+
+        logger.info("Average training loss: {:.4f}".format(loss_accum / (step + 1)))
         return loss_accum / (step + 1)
 
     @staticmethod

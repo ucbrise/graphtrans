@@ -1,10 +1,18 @@
 import torch
 import torch.nn.functional as F
-from torch_geometric.nn import MessagePassing
+from torch_geometric.nn import (
+    GlobalAttention,
+    MessagePassing,
+    Set2Set,
+    global_add_pool,
+    global_max_pool,
+    global_mean_pool,
+)
 from torch_geometric.nn.inits import uniform
-from torch_geometric.nn import global_add_pool, global_mean_pool, global_max_pool, GlobalAttention, Set2Set
-from modules.conv import GINConv, GCNConv
+
+from modules.conv import GCNConv, GINConv
 from modules.utils import pad_batch
+
 
 ### GNN to generate nodse embedding
 class GNN_node(torch.nn.Module):
@@ -12,15 +20,16 @@ class GNN_node(torch.nn.Module):
     Output:
         node representations
     """
+
     @staticmethod
     def need_deg():
         return False
-    
-    def __init__(self, num_layer, emb_dim, node_encoder, edge_encoder_cls, drop_ratio=0.5, JK="last", residual=False, gnn_type='gin'):
-        '''
-            emb_dim (int): node embedding dimensionality
-            num_layer (int): number of GNN message passing layers
-        '''
+
+    def __init__(self, num_layer, emb_dim, node_encoder, edge_encoder_cls, drop_ratio=0.5, JK="last", residual=False, gnn_type="gin"):
+        """
+        emb_dim (int): node embedding dimensionality
+        num_layer (int): number of GNN message passing layers
+        """
 
         super(GNN_node, self).__init__()
         self.num_layer = num_layer
@@ -39,22 +48,30 @@ class GNN_node(torch.nn.Module):
         self.batch_norms = torch.nn.ModuleList()
 
         for layer in range(num_layer):
-            if gnn_type == 'gin':
+            if gnn_type == "gin":
                 self.convs.append(GINConv(emb_dim, edge_encoder_cls))
-            elif gnn_type == 'gcn':
+            elif gnn_type == "gcn":
                 self.convs.append(GCNConv(emb_dim, edge_encoder_cls))
             else:
-                ValueError('Undefined GNN type called {}'.format(gnn_type))
-                
+                ValueError("Undefined GNN type called {}".format(gnn_type))
+
             self.batch_norms.append(torch.nn.BatchNorm1d(emb_dim))
 
     def forward(self, batched_data, perturb=None):
         x, edge_index, edge_attr, batch = batched_data.x, batched_data.edge_index, batched_data.edge_attr, batched_data.batch
         node_depth = batched_data.node_depth if hasattr(batched_data, "node_depth") else None
 
-
         ### computing input node embedding
-        encoded_node = self.node_encoder(x) if node_depth is None else self.node_encoder(x, node_depth.view(-1, ))
+        encoded_node = (
+            self.node_encoder(x)
+            if node_depth is None
+            else self.node_encoder(
+                x,
+                node_depth.view(
+                    -1,
+                ),
+            )
+        )
         tmp = encoded_node + perturb if perturb is not None else encoded_node
         h_list = [tmp]
 
@@ -64,7 +81,7 @@ class GNN_node(torch.nn.Module):
             h = self.batch_norms[layer](h)
 
             if layer == self.num_layer - 1:
-                #remove relu for the last layer
+                # remove relu for the last layer
                 h = F.dropout(h, self.drop_ratio, training=self.training)
             else:
                 h = F.dropout(F.relu(h), self.drop_ratio, training=self.training)
@@ -93,14 +110,15 @@ class GNN_node_Virtualnode(torch.nn.Module):
     Output:
         node representations
     """
+
     @staticmethod
     def need_deg():
         return False
 
-    def __init__(self, num_layer, emb_dim, node_encoder, edge_encoder_cls, drop_ratio=0.5, JK="last", residual=False, gnn_type='gin'):
-        '''
-            emb_dim (int): node embedding dimensionality
-        '''
+    def __init__(self, num_layer, emb_dim, node_encoder, edge_encoder_cls, drop_ratio=0.5, JK="last", residual=False, gnn_type="gin"):
+        """
+        emb_dim (int): node embedding dimensionality
+        """
 
         super(GNN_node_Virtualnode, self).__init__()
         self.num_layer = num_layer
@@ -127,18 +145,26 @@ class GNN_node_Virtualnode(torch.nn.Module):
         self.mlp_virtualnode_list = torch.nn.ModuleList()
 
         for layer in range(num_layer):
-            if gnn_type == 'gin':
+            if gnn_type == "gin":
                 self.convs.append(GINConv(emb_dim, edge_encoder_cls))
-            elif gnn_type == 'gcn':
+            elif gnn_type == "gcn":
                 self.convs.append(GCNConv(emb_dim, edge_encoder_cls))
             else:
-                ValueError('Undefined GNN type called {}'.format(gnn_type))
+                ValueError("Undefined GNN type called {}".format(gnn_type))
 
             self.batch_norms.append(torch.nn.BatchNorm1d(emb_dim))
 
         for layer in range(num_layer - 1):
-            self.mlp_virtualnode_list.append(torch.nn.Sequential(torch.nn.Linear(emb_dim, 2*emb_dim), torch.nn.BatchNorm1d(2*emb_dim), torch.nn.ReLU(),
-                                                                 torch.nn.Linear(2*emb_dim, emb_dim), torch.nn.BatchNorm1d(emb_dim), torch.nn.ReLU()))
+            self.mlp_virtualnode_list.append(
+                torch.nn.Sequential(
+                    torch.nn.Linear(emb_dim, 2 * emb_dim),
+                    torch.nn.BatchNorm1d(2 * emb_dim),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(2 * emb_dim, emb_dim),
+                    torch.nn.BatchNorm1d(emb_dim),
+                    torch.nn.ReLU(),
+                )
+            )
 
     def forward(self, batched_data, perturb=None):
 
@@ -146,13 +172,21 @@ class GNN_node_Virtualnode(torch.nn.Module):
         node_depth = batched_data.node_depth if hasattr(batched_data, "node_depth") else None
 
         ### computing input node embedding
-        encoded_node = self.node_encoder(x) if node_depth is None else self.node_encoder(x, node_depth.view(-1, ))
+        encoded_node = (
+            self.node_encoder(x)
+            if node_depth is None
+            else self.node_encoder(
+                x,
+                node_depth.view(
+                    -1,
+                ),
+            )
+        )
         tmp = encoded_node + perturb if perturb is not None else encoded_node
         h_list = [tmp]
-        
+
         ### virtual node embeddings for graphs
-        virtualnode_embedding = self.virtualnode_embedding(torch.zeros(
-            batch[-1].item() + 1).to(edge_index.dtype).to(edge_index.device))
+        virtualnode_embedding = self.virtualnode_embedding(torch.zeros(batch[-1].item() + 1).to(edge_index.dtype).to(edge_index.device))
 
         for layer in range(self.num_layer):
             ### add message from virtual nodes to graph nodes
@@ -163,7 +197,7 @@ class GNN_node_Virtualnode(torch.nn.Module):
 
             h = self.batch_norms[layer](h)
             if layer == self.num_layer - 1:
-                #remove relu for the last layer
+                # remove relu for the last layer
                 h = F.dropout(h, self.drop_ratio, training=self.training)
             else:
                 h = F.dropout(F.relu(h), self.drop_ratio, training=self.training)
@@ -180,12 +214,13 @@ class GNN_node_Virtualnode(torch.nn.Module):
                 ### transform virtual nodes using MLP
 
                 if self.residual:
-                    virtualnode_embedding = virtualnode_embedding + \
-                        F.dropout(self.mlp_virtualnode_list[layer](
-                            virtualnode_embedding_temp), self.drop_ratio, training=self.training)
+                    virtualnode_embedding = virtualnode_embedding + F.dropout(
+                        self.mlp_virtualnode_list[layer](virtualnode_embedding_temp), self.drop_ratio, training=self.training
+                    )
                 else:
-                    virtualnode_embedding = F.dropout(self.mlp_virtualnode_list[layer](
-                        virtualnode_embedding_temp), self.drop_ratio, training=self.training)
+                    virtualnode_embedding = F.dropout(
+                        self.mlp_virtualnode_list[layer](virtualnode_embedding_temp), self.drop_ratio, training=self.training
+                    )
 
         ### Different implementations of Jk-concat
         if self.JK == "last":

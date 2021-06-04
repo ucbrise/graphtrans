@@ -9,5 +9,4 @@ DATASET_UTILS = {
     'ogbg-molpcba': MolUtil,
     'NCI1': TUUtil,
     'NCI109': TUUtil,
-    'DD': TUUtil,
 }

@@ -1,14 +1,14 @@
-from typing import Optional, List, Dict
-from torch_geometric.typing import Adj, OptTensor
+from typing import Dict, List, Optional
 
 import torch
-import torch.nn.functional as F
 import torch.nn as nn
+import torch.nn.functional as F
+from ogb.graphproppred.mol_encoder import BondEncoder
 from torch import Tensor
 from torch_geometric.nn.conv import MessagePassing
 from torch_geometric.nn.inits import reset
+from torch_geometric.typing import Adj, OptTensor
 from torch_geometric.utils import degree
-from ogb.graphproppred.mol_encoder import BondEncoder
 
 from .pna.aggregators import AGGREGATORS
 from .pna.scalers import SCALERS
@@ -57,11 +57,20 @@ class PNAConv(MessagePassing):
                 :class:`torch_geometric.nn.conv.MessagePassing`.
         """
 
-    def __init__(self, in_channels: int, out_channels: int,
-                 aggregators: List[str], scalers: List[str], deg: Tensor,
-                 edge_dim: Optional[int] = None, towers: int = 1,
-                 pre_layers: int = 1, post_layers: int = 1,
-                 divide_input: bool = False, **kwargs):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        aggregators: List[str],
+        scalers: List[str],
+        deg: Tensor,
+        edge_dim: Optional[int] = None,
+        towers: int = 1,
+        pre_layers: int = 1,
+        post_layers: int = 1,
+        divide_input: bool = False,
+        **kwargs,
+    ):
 
         super(PNAConv, self).__init__(aggr=None, node_dim=0, **kwargs)
 
@@ -82,9 +91,9 @@ class PNAConv(MessagePassing):
 
         deg = deg.to(torch.float)
         self.avg_deg: Dict[str, float] = {
-            'lin': deg.mean().item(),
-            'log': (deg + 1).log().mean().item(),
-            'exp': deg.exp().mean().item(),
+            "lin": deg.mean().item(),
+            "log": (deg + 1).log().mean().item(),
+            "exp": deg.exp().mean().item(),
         }
 
         if self.edge_dim is not None:
@@ -119,8 +128,7 @@ class PNAConv(MessagePassing):
             reset(nn)
         self.lin.reset_parameters()
 
-    def forward(self, x: Tensor, edge_index: Adj,
-                edge_attr: OptTensor = None) -> Tensor:
+    def forward(self, x: Tensor, edge_index: Adj, edge_attr: OptTensor = None) -> Tensor:
 
         if self.divide_input:
             x = x.view(-1, self.towers, self.F_in)
@@ -136,8 +144,7 @@ class PNAConv(MessagePassing):
 
         return self.lin(out)
 
-    def message(self, x_i: Tensor, x_j: Tensor,
-                edge_attr: OptTensor) -> Tensor:
+    def message(self, x_i: Tensor, x_j: Tensor, edge_attr: OptTensor) -> Tensor:
 
         h: Tensor = x_i  # Dummy.
         if edge_attr is not None:
@@ -151,8 +158,7 @@ class PNAConv(MessagePassing):
         hs = [nn(h[:, i]) for i, nn in enumerate(self.pre_nns)]
         return torch.stack(hs, dim=1)
 
-    def aggregate(self, inputs: Tensor, index: Tensor,
-                  dim_size: Optional[int] = None) -> Tensor:
+    def aggregate(self, inputs: Tensor, index: Tensor, dim_size: Optional[int] = None) -> Tensor:
         outs = [aggr(inputs, index, dim_size) for aggr in self.aggregators]
         out = torch.cat(outs, dim=-1)
 
@@ -161,8 +167,7 @@ class PNAConv(MessagePassing):
         return torch.cat(outs, dim=-1)
 
     def __repr__(self):
-        return (f'{self.__class__.__name__}({self.in_channels}, '
-                f'{self.out_channels}, towers={self.towers}, dim={self.dim})')
+        return f"{self.__class__.__name__}({self.in_channels}, " f"{self.out_channels}, towers={self.towers}, dim={self.dim})"
         raise NotImplementedError
 
 
@@ -198,9 +203,19 @@ class PNAConvSimple(MessagePassing):
                 :class:`torch_geometric.nn.conv.MessagePassing`.
         """
 
-    def __init__(self, in_channels: int, out_channels: int, edge_encoder_cls, 
-                 aggregators: List[str], scalers: List[str], deg: Tensor, drop_ratio: float = None,
-                 post_layers: int = 1, add_edge='none', **kwargs):
+    def __init__(
+        self,
+        in_channels: int,
+        out_channels: int,
+        edge_encoder_cls,
+        aggregators: List[str],
+        scalers: List[str],
+        deg: Tensor,
+        drop_ratio: float = None,
+        post_layers: int = 1,
+        add_edge="none",
+        **kwargs,
+    ):
 
         super(PNAConvSimple, self).__init__(aggr=None, node_dim=0, **kwargs)
 
@@ -210,7 +225,7 @@ class PNAConvSimple(MessagePassing):
         self.scalers = [SCALERS[scale] for scale in scalers]
 
         self.add_edge = add_edge
-        if add_edge != 'none':
+        if add_edge != "none":
             self.edge_encoder = edge_encoder_cls(in_channels)
 
         self.F_in = in_channels
@@ -218,9 +233,9 @@ class PNAConvSimple(MessagePassing):
 
         deg = deg.to(torch.float)
         self.avg_deg: Dict[str, float] = {
-            'lin': deg.mean().item(),
-            'log': (deg + 1).log().mean().item(),
-            'exp': deg.exp().mean().item(),
+            "lin": deg.mean().item(),
+            "log": (deg + 1).log().mean().item(),
+            "exp": deg.exp().mean().item(),
         }
 
         in_channels = (len(aggregators) * len(scalers)) * self.F_in
@@ -231,7 +246,7 @@ class PNAConvSimple(MessagePassing):
             # modules += [nn.Dropout(drop_ratio)] if drop_ratio is not None else []
             modules += [nn.Linear(self.F_out, self.F_out)]
         self.post_nn = nn.Sequential(*modules)
-        if self.add_edge == 'gincat':
+        if self.add_edge == "gincat":
             self.pre_nn = nn.Linear(self.F_in * 2, self.F_in)
 
         self.reset_parameters()
@@ -246,17 +261,16 @@ class PNAConvSimple(MessagePassing):
         return self.post_nn(out)
 
     def message(self, x_j: Tensor, edge_attr: OptTensor) -> Tensor:
-        if self.add_edge == 'gin':
+        if self.add_edge == "gin":
             edge_attr = self.edge_encoder(edge_attr)
             return F.relu(x_j + edge_attr)
-        elif self.add_edge == 'gincat':
+        elif self.add_edge == "gincat":
             edge_attr = self.edge_encoder(edge_attr)
             x_j = torch.cat([x_j, edge_attr], dim=-1)
             return self.pre_nn(x_j)
         return x_j
 
-    def aggregate(self, inputs: Tensor, index: Tensor,
-                  dim_size: Optional[int] = None) -> Tensor:
+    def aggregate(self, inputs: Tensor, index: Tensor, dim_size: Optional[int] = None) -> Tensor:
         outs = [aggr(inputs, index, dim_size) for aggr in self.aggregators]
         out = torch.cat(outs, dim=-1)
 
@@ -265,6 +279,5 @@ class PNAConvSimple(MessagePassing):
         return torch.cat(outs, dim=-1)
 
     def __repr__(self):
-        return (f'{self.__class__.__name__}({self.in_channels}, '
-                f'{self.out_channels}')
+        return f"{self.__class__.__name__}({self.in_channels}, " f"{self.out_channels}"
         raise NotImplementedError
