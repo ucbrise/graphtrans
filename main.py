@@ -187,7 +187,7 @@ def main():
                 verbose=False,
             )
         elif args.scheduler is None:
-            pass
+            scheduler = None
         else:
             raise NotImplementedError
 

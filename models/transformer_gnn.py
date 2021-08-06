@@ -4,16 +4,22 @@ import torch.nn as nn
 import torch.nn.functional as F
 from loguru import logger
 
-import math
 from modules.gnn_module import GNNNodeEmbedding
 from modules.masked_transformer_encoder import MaskedOnlyTransformerEncoder
 from modules.transformer_encoder import TransformerNodeEncoder
-from modules.utils import pad_batch
+from modules.utils import pad_batch, unpad_batch
 
 from .base_model import BaseModel
+from torch_geometric.nn import (
+    GlobalAttention,
+    MessagePassing,
+    Set2Set,
+    global_add_pool,
+    global_max_pool,
+    global_mean_pool,
+)
 
-
-class GNNTransformer(BaseModel):
+class TransformerGNN(BaseModel):
     @staticmethod
     def get_emb_dim(args):
         return args.gnn_emb_dim
@@ -23,7 +29,6 @@ class GNNTransformer(BaseModel):
         TransformerNodeEncoder.add_args(parser)
         MaskedOnlyTransformerEncoder.add_args(parser)
         group = parser.add_argument_group("GNNTransformer - Training Config")
-        group.add_argument("--pos_encoder", default=False, action='store_true')
         group.add_argument("--pretrained_gnn", type=str, default=None, help="pretrained gnn_node node embedding path")
         group.add_argument("--freeze_gnn", type=int, default=None, help="Freeze gnn_node weight from epoch `freeze_gnn`")
 
@@ -47,12 +52,17 @@ class GNNTransformer(BaseModel):
 
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         super().__init__()
+        self.node_encoder = node_encoder
+        gnn_emb_dim = 2 * args.gnn_emb_dim if args.gnn_JK == "cat" else args.gnn_emb_dim
+        self.transformer_encoder = TransformerNodeEncoder(args)
+        self.masked_transformer_encoder = MaskedOnlyTransformerEncoder(args)
+        self.transformer2gnn = nn.Linear(args.d_model, gnn_emb_dim)
         self.gnn_node = GNNNodeEmbedding(
             args.gnn_virtual_node,
             args.gnn_num_layer,
             args.gnn_emb_dim,
-            node_encoder,
-            edge_encoder_cls,
+            node_encoder=None,
+            edge_encoder_cls=edge_encoder_cls,
             JK=args.gnn_JK,
             drop_ratio=args.gnn_dropout,
             residual=args.gnn_residual,
@@ -66,11 +76,6 @@ class GNNTransformer(BaseModel):
             self.gnn_node.load_state_dict(state_dict)
         self.freeze_gnn = args.freeze_gnn
 
-        gnn_emb_dim = 2 * args.gnn_emb_dim if args.gnn_JK == "cat" else args.gnn_emb_dim
-        self.gnn2transformer = nn.Linear(gnn_emb_dim, args.d_model)
-        self.pos_encoder = PositionalEncoding(args.d_model, dropout=0) if args.pos_encoder else None
-        self.transformer_encoder = TransformerNodeEncoder(args)
-        self.masked_transformer_encoder = MaskedOnlyTransformerEncoder(args)
         self.num_encoder_layers = args.num_encoder_layers
         self.num_encoder_layers_masked = args.num_encoder_layers_masked
 
@@ -79,26 +84,61 @@ class GNNTransformer(BaseModel):
         self.graph_pred_linear_list = torch.nn.ModuleList()
 
         self.max_seq_len = args.max_seq_len
-        output_dim = args.d_model
 
-        if args.max_seq_len is None:
-            self.graph_pred_linear = torch.nn.Linear(output_dim, self.num_tasks)
+        ### Pooling function to generate whole-graph embeddings
+        if self.pooling == "sum":
+            self.pool = global_add_pool
+        elif self.pooling == "mean":
+            self.pool = global_mean_pool
+        elif self.pooling == "max":
+            self.pool = global_max_pool
+        elif self.pooling == "attention":
+            self.pool = GlobalAttention(
+                gate_nn=torch.nn.Sequential(
+                    torch.nn.Linear(gnn_emb_dim, 2 * gnn_emb_dim),
+                    torch.nn.BatchNorm1d(2 * gnn_emb_dim),
+                    torch.nn.ReLU(),
+                    torch.nn.Linear(2 * gnn_emb_dim, 1),
+                )
+            )
+        elif self.pooling == "set2set":
+            self.pool = Set2Set(gnn_emb_dim, processing_steps=2)
         else:
-            for i in range(args.max_seq_len):
-                self.graph_pred_linear_list.append(torch.nn.Linear(output_dim, self.num_tasks))
+            raise ValueError(f"Invalid graph pooling type. {self.pooling}")
+
+        if self.max_seq_len is None:
+            if self.pooling == "set2set":
+                self.graph_pred_linear = torch.nn.Linear(2 * gnn_emb_dim, self.num_tasks)
+            else:
+                self.graph_pred_linear = torch.nn.Linear(gnn_emb_dim, self.num_tasks)
+        else:
+            self.graph_pred_linear_list = torch.nn.ModuleList()
+            if self.pooling == "set2set":
+                for i in range(self.max_seq_len):
+                    self.graph_pred_linear_list.append(torch.nn.Linear(2 * gnn_emb_dim, self.num_tasks))
+            else:
+                for i in range(self.max_seq_len):
+                    self.graph_pred_linear_list.append(torch.nn.Linear(gnn_emb_dim, self.num_tasks))
 
     def forward(self, batched_data, perturb=None):
-        h_node = self.gnn_node(batched_data, perturb)
-        h_node = self.gnn2transformer(h_node)  # [s, b, d_model]
-
+        x = batched_data.x
+        node_depth = batched_data.node_depth if hasattr(batched_data, "node_depth") else None
+        encoded_node = (
+            self.node_encoder(x)
+            if node_depth is None
+            else self.node_encoder(
+                x,
+                node_depth.view(
+                    -1,
+                ),
+            )
+        )
+        tmp = encoded_node + perturb if perturb is not None else encoded_node
         padded_h_node, src_padding_mask, num_nodes, mask, max_num_nodes = pad_batch(
-            h_node, batched_data.batch, self.transformer_encoder.max_input_len, get_mask=True
+            tmp, batched_data.batch, self.transformer_encoder.max_input_len, get_mask=True
         )  # Pad in the front
-
         # TODO(paras): implement mask
         transformer_out = padded_h_node
-        if self.pos_encoder is not None:
-            transformer_out = self.pos_encoder(transformer_out)
         if self.num_encoder_layers_masked > 0:
             adj_list = batched_data.adj_list
             padded_adj_list = torch.zeros((len(adj_list), max_num_nodes, max_num_nodes), device=h_node.device)
@@ -110,13 +150,12 @@ class GNNTransformer(BaseModel):
             ).transpose(0, 1)
         if self.num_encoder_layers > 0:
             transformer_out, _ = self.transformer_encoder(transformer_out, src_padding_mask)  # [s, b, h], [b, s]
+        
+        h_node = unpad_batch(transformer_out, tmp, num_nodes, mask, max_num_nodes)
+        batched_data.x = self.transformer2gnn(h_node)
+        h_node = self.gnn_node(batched_data, None)
 
-        if self.pooling in ["last", "cls"]:
-            h_graph = transformer_out[-1]
-        elif self.pooling == "mean":
-            h_graph = transformer_out.sum(0) / src_padding_mask.sum(-1, keepdim=True)
-        else:
-            raise NotImplementedError
+        h_graph = self.pool(h_node, batched_data.batch)
 
         if self.max_seq_len is None:
             out = self.graph_pred_linear(h_graph)
@@ -144,25 +183,3 @@ class GNNTransformer(BaseModel):
                 new_key = ".".join(new_key[module_index + 1 :])
                 new_state_dict[new_key] = v
         return new_state_dict
-
-
-class PositionalEncoding(nn.Module):
-
-    def __init__(self, d_model: int, dropout: float = 0.1, max_len: int = 5000):
-        super().__init__()
-        self.dropout = nn.Dropout(p=dropout)
-
-        position = torch.arange(max_len).unsqueeze(1)
-        div_term = torch.exp(torch.arange(0, d_model, 2) * (-math.log(10000.0) / d_model))
-        pe = torch.zeros(max_len, 1, d_model)
-        pe[:, 0, 0::2] = torch.sin(position * div_term)
-        pe[:, 0, 1::2] = torch.cos(position * div_term)
-        self.register_buffer('pe', pe)
-
-    def forward(self, x):
-        """
-        Args:
-            x: Tensor, shape [seq_len, batch_size, embedding_dim]
-        """
-        x = x + self.pe[:x.size(0)]
-        return self.dropout(x)

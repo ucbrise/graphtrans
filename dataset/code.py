@@ -79,7 +79,7 @@ class CodeUtil:
     def preprocess(self, dataset, dataset_eval, model_cls, args):
         split_idx = dataset.get_idx_split()
         seq_len_list = np.array([len(seq) for seq in dataset.data.y])
-        logger.error(
+        print(
             "Target seqence less or equal to {} is {}%.".format(
                 args.max_seq_len, np.sum(seq_len_list <= args.max_seq_len) / len(seq_len_list)
             )
