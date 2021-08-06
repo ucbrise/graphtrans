@@ -150,17 +150,17 @@ def main():
         train_loader_eval = DataLoader(train_data, batch_size=eval_bs, shuffle=False, num_workers=args.num_workers, pin_memory=True)
         valid_loader = DataLoader(valid_data, batch_size=eval_bs, shuffle=False, num_workers=args.num_workers, pin_memory=True)
         test_loader = DataLoader(test_data, batch_size=eval_bs, shuffle=False, num_workers=args.num_workers, pin_memory=True)
-        return train_loader, valid_loader, test_loader
+        return train_loader, train_loader_eval, valid_loader, test_loader
 
-    train_loader_, valid_loader_, test_loader_ = create_loader(dataset_, dataset_eval_)
+    train_loader_, train_loader_eval_, valid_loader_, test_loader_ = create_loader(dataset_, dataset_eval_)
 
     def run(run_id):
         if "ogb" not in args.dataset:
             dataset, _, _, _, _ = dataset_util.preprocess(args)
             dataset_eval = dataset
-            train_loader, valid_loader, test_loader = create_loader(dataset, dataset_eval)
+            train_loader, train_loader_eval, valid_loader, test_loader = create_loader(dataset, dataset_eval)
         else:
-            train_loader, valid_loader, test_loader = train_loader_, valid_loader_, test_loader_
+            train_loader, train_loader_eval, valid_loader, test_loader = train_loader_, train_loader_eval_, valid_loader_, test_loader_
             dataset = dataset_
         node_encoder = node_encoder_cls()
 
@@ -205,7 +205,7 @@ def main():
 
         model.epoch_callback(epoch=start_epoch - 1)
         for epoch in range(start_epoch, args.epochs + 1):
-            logger.info("=====Epoch {epoch}=====")
+            logger.info(f"=====Epoch {epoch}=====")
             logger.info("Training...")
             logger.info("Total parameters: {}", utils.num_total_parameters(model))
             logger.info("Trainable parameters: {}", utils.num_trainable_parameters(model))
