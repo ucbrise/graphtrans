@@ -15,3 +15,4 @@ seed: 12344
 
 transformer_norm_input: true
 gnn_JK: cat
+graph_input_dim: 300

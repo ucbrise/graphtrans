@@ -13,7 +13,7 @@ seed: 12344
 
 transformer_norm_input: true
 
-runs: 5
+runs: 20
 epochs: 100
 
 d_model: 128

@@ -45,7 +45,7 @@ def unpad_batch(padded_h_node, prev_h_node, num_nodes, origin_mask, max_num_node
             indices = mask.nonzero()
             indices = indices[-num_node:]
             mask = torch.zeros_like(mask)
-            mask[indices[:, 0], indices[:, 1]] = True
+            mask[indices] = True
         # logger.info("prev_h_node:", prev_h_node.size())
         # logger.info("padded_h_node:", padded_h_node.size())
         # logger.info("mask:", mask.size())

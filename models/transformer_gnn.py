@@ -31,6 +31,7 @@ class TransformerGNN(BaseModel):
         group = parser.add_argument_group("GNNTransformer - Training Config")
         group.add_argument("--pretrained_gnn", type=str, default=None, help="pretrained gnn_node node embedding path")
         group.add_argument("--freeze_gnn", type=int, default=None, help="Freeze gnn_node weight from epoch `freeze_gnn`")
+        group.add_argument("--graph_input_dim", type=int, default=None)
 
     @staticmethod
     def name(args):
@@ -53,9 +54,10 @@ class TransformerGNN(BaseModel):
     def __init__(self, num_tasks, node_encoder, edge_encoder_cls, args):
         super().__init__()
         self.node_encoder = node_encoder
-        gnn_emb_dim = 2 * args.gnn_emb_dim if args.gnn_JK == "cat" else args.gnn_emb_dim
+        self.input2transformer = nn.Linear(args.graph_input_dim, args.d_model) if args.graph_input_dim is not None else None
         self.transformer_encoder = TransformerNodeEncoder(args)
         self.masked_transformer_encoder = MaskedOnlyTransformerEncoder(args)
+        gnn_emb_dim = args.gnn_emb_dim
         self.transformer2gnn = nn.Linear(args.d_model, gnn_emb_dim)
         self.gnn_node = GNNNodeEmbedding(
             args.gnn_virtual_node,
@@ -134,6 +136,8 @@ class TransformerGNN(BaseModel):
             )
         )
         tmp = encoded_node + perturb if perturb is not None else encoded_node
+        if self.input2transformer is not None:
+            tmp = self.input2transformer(tmp)
         padded_h_node, src_padding_mask, num_nodes, mask, max_num_nodes = pad_batch(
             tmp, batched_data.batch, self.transformer_encoder.max_input_len, get_mask=True
         )  # Pad in the front
