@@ -175,16 +175,19 @@ class GNN_node_Virtualnode(torch.nn.Module):
         node_depth = batched_data.node_depth if hasattr(batched_data, "node_depth") else None
 
         ### computing input node embedding
-        encoded_node = (
-            self.node_encoder(x)
-            if node_depth is None
-            else self.node_encoder(
-                x,
-                node_depth.view(
-                    -1,
-                ),
+        if self.node_encoder is not None:
+            encoded_node = (
+                self.node_encoder(x)
+                if node_depth is None
+                else self.node_encoder(
+                    x,
+                    node_depth.view(
+                        -1,
+                    ),
+                )
             )
-        )
+        else:
+            encoded_node = x
         tmp = encoded_node + perturb if perturb is not None else encoded_node
         h_list = [tmp]
 

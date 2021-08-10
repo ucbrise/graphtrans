@@ -120,7 +120,10 @@ class TransformerGNN(BaseModel):
                     self.graph_pred_linear_list.append(torch.nn.Linear(2 * gnn_emb_dim, self.num_tasks))
             else:
                 for i in range(self.max_seq_len):
-                    self.graph_pred_linear_list.append(torch.nn.Linear(gnn_emb_dim, self.num_tasks))
+                    if args.gnn_JK == 'cat':
+                        self.graph_pred_linear_list.append(torch.nn.Linear(2 * gnn_emb_dim, self.num_tasks))
+                    else:
+                        self.graph_pred_linear_list.append(torch.nn.Linear(gnn_emb_dim, self.num_tasks))
 
     def forward(self, batched_data, perturb=None):
         x = batched_data.x

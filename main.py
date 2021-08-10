@@ -154,6 +154,8 @@ def main():
 
     train_loader_, train_loader_eval_, valid_loader_, test_loader_ = create_loader(dataset_, dataset_eval_)
 
+    def count_parameters(model):
+        return sum(p.numel() for p in model.parameters() if p.requires_grad)
     def run(run_id):
         if "ogb" not in args.dataset:
             dataset, _, _, _, _ = dataset_util.preprocess(args)
@@ -167,6 +169,8 @@ def main():
         os.makedirs(os.path.join(args.save_path, str(run_id)), exist_ok=True)
         best_val, final_test = 0, 0
         model = model_cls(num_tasks=num_tasks, args=args, node_encoder=node_encoder, edge_encoder_cls=edge_encoder_cls).to(device)
+        print("Model Parameters: ", count_parameters(model))
+        # exit(-1)
         # model = nn.DataParallel(model)
 
         wandb.watch(model)
