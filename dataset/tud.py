@@ -23,7 +23,7 @@ class TUUtil:
     @staticmethod
     def loss_fn(task_type):
         def calc_loss(pred, batch, m=1.0):
-            loss = F.nll_loss(pred, batch.y)
+            loss = F.cross_entropy(pred, batch.y)
             return loss
 
         return calc_loss
