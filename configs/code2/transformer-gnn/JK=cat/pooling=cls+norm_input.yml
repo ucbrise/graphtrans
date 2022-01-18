@@ -1,0 +1,18 @@
+dataset: ogbg-code2
+aug: baseline
+model_type: transformer-gnn
+
+gnn_type: gcn
+gnn_virtual_node: true
+
+graph_pooling: mean
+
+batch_size: 16
+lr: 0.0001
+
+runs: 1
+seed: 12344
+
+transformer_norm_input: true
+gnn_JK: cat
+graph_input_dim: 300

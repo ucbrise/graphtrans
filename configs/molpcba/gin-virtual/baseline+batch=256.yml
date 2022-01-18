@@ -1,0 +1,11 @@
+dataset: ogbg-molpcba
+aug: baseline
+model_type: gnn
+gnn_type: gin
+gnn_virtual_node: true
+runs: 1
+batch_size: 256
+gnn_dropout: 0.5
+epochs: 100
+lr: 0.01
+scheduler: plateau

@@ -1,0 +1,28 @@
+dataset: NCI1
+aug: baseline
+model_type: gnn-transformer
+
+gnn_type: gcn
+gnn_virtual_node: false
+
+graph_pooling: cls
+
+lr: 0.0001
+
+seed: 12344
+
+transformer_norm_input: true
+
+runs: 20
+epochs: 100
+
+d_model: 128
+dim_feedforward: 256
+num_encoder_layers: 3
+scheduler: cosine
+
+transformer_dropout: 0.1
+gnn_dropout: 0.1
+gnn_emb_dim: 128
+
+pos_encoder: True

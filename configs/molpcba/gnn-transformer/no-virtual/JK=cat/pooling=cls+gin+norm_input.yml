@@ -1,0 +1,16 @@
+dataset: ogbg-molpcba
+aug: baseline
+model_type: gnn-transformer
+gnn_type: gin
+gnn_virtual_node: false
+graph_pooling: cls
+runs: 1
+seed: 12344
+batch_size: 256
+lr: 0.0001
+start-eval: 1
+scheduler: plateau
+
+transformer_norm_input: true
+gnn_dropout: 0.3
+gnn_JK: cat
