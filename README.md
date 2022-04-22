@@ -21,11 +21,11 @@ conda env create -f requirement.yml
 To run the experiments, please refer to the commands below (taking OGBG-Code2 as an example):
 ```bash
 # GraphTrans (GCN-Virtual)
-python main.py --configs configs/code2/gnn-transformer/JK=cat/pooling=cls+norm_input.yml —runs 5
+python main.py --configs configs/code2/gnn-transformer/JK=cat/pooling=cls+norm_input.yml --runs 5
 # GraphTrans (GCN)
-python main.py --configs configs/code2/gnn-transformer/no-virtual/pooling=cls+norm_input.yml —runs 5
+python main.py --configs configs/code2/gnn-transformer/no-virtual/pooling=cls+norm_input.yml --runs 5
 # Or to use slurm
-sbatch ./slurm-run.sh ”configs/code2/gnn-transformer/JK=cat/pooling=cls+norm_input.yml —runs 5”
+sbatch ./slurm-run.sh ”configs/code2/gnn-transformer/JK=cat/pooling=cls+norm_input.yml --runs 5”
 ```
 The config path for each dataset/model can be found in the result table below.
 ## Results
